@@ -1,0 +1,15 @@
+# File này dùng để cấu hình các thông tin bí mật khi chạy ở máy local.
+# Copy nội dung file này vào `application-local.yml` và điền thông tin thực tế của bạn.
+# File `application-local.yml` đã được đưa vào .gitignore để không bị đẩy lên GitHub.
+
+spring:
+  datasource:
+    # Điền mật khẩu database Supabase của bạn tại đây:
+    password: YOUR_SUPABASE_DB_PASSWORD_HERE
+    # Nếu muốn dùng connection pooler (Session/Transaction mode):
+    # url: jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require
+
+  mail:
+    # Điền email và mật khẩu ứng dụng Gmail (16 ký tự) nếu muốn test gửi OTP thật:
+    username: your_email@gmail.com
+    password: your_16_char_app_password
