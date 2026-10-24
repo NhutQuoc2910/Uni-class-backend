@@ -34,6 +34,7 @@ out/
 ### Secrets & Environment Config ###
 .env
 .env.*
+!.env.example
 application-local.yml
 application-local.properties
 firebase-service-account.json
