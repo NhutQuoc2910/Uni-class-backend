@@ -100,6 +100,13 @@
             <version>${firebase.version}</version>
         </dependency>
 
+        <!-- Dotenv for loading .env in local development -->
+        <dependency>
+            <groupId>io.github.cdimascio</groupId>
+            <artifactId>dotenv-java</artifactId>
+            <version>3.0.0</version>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

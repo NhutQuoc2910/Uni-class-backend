@@ -1,10 +1,6 @@
 spring:
   application:
     name: edulens-backend
-  config:
-    import:
-      - optional:file:./application-local.yml
-      - optional:classpath:application-local.yml
 
   datasource:
     url: ${SPRING_DATASOURCE_URL:${DB_URL:jdbc:postgresql://db.mbetvxgxeeraozqbsull.supabase.co:5432/postgres?sslmode=require}}
