@@ -1,17 +1,46 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
 *.iml
-.gradle
-/local.properties
-/.idea/
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
-.superpowers/
-app/build/
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbproject/load-factor.properties
+/build/
+
+### VS Code ###
 .vscode/
-docs/
+
+### Secrets & Environment Config ###
+.env
+.env.*
+application-local.yml
+application-local.properties
+firebase-service-account.json
+*.p12
+*.jks
+
+### OS Files ###
+.DS_Store
+Thumbs.db
 skills/
-*.md
-!README.md
