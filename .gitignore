@@ -45,3 +45,17 @@ firebase-service-account.json
 .DS_Store
 Thumbs.db
 skills/
+
+### Logs & Temp ###
+*.log
+logs/
+temp/
+tmp/
+
+### Docker Local Overrides ###
+docker-compose.override.yml
+
+### OS files in all subdirectories ###
+**/.DS_Store
+**/Thumbs.db
+
