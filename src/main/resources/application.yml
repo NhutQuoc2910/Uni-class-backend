@@ -3,8 +3,9 @@ spring:
     name: edulens-backend
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:${DB_URL:jdbc:postgresql://db.mbetvxgxeeraozqbsull.supabase.co:5432/postgres?sslmode=require}}
-    username: ${SPRING_DATASOURCE_USERNAME:${DB_USERNAME:postgres}}
+    # Hỗ trợ cả SPRING_DATASOURCE_URL, DB_JDBC_URL (midterm_plan) và DB_URL
+    url: ${SPRING_DATASOURCE_URL:${DB_JDBC_URL:${DB_URL:jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require}}}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USERNAME:postgres.mbetvxgxeeraozqbsull}}
     password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:}}
     driver-class-name: org.postgresql.Driver
     hikari:
@@ -13,6 +14,8 @@ spring:
       idle-timeout: 30000
       max-lifetime: 1800000
       connection-timeout: 20000
+      data-source-properties:
+        prepareThreshold: 0 # Tránh lỗi PgBouncer khi dùng Supabase Pooler
 
   jpa:
     hibernate:
@@ -26,8 +29,9 @@ spring:
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
+    # Hỗ trợ cả MAIL_USERNAME và GMAIL_USERNAME (midterm_plan)
+    username: ${MAIL_USERNAME:${GMAIL_USERNAME:}}
+    password: ${MAIL_PASSWORD:${GMAIL_APP_PASSWORD:}}
     properties:
       mail:
         smtp:
