@@ -49,3 +49,13 @@ jwt:
 # Firebase configuration
 firebase:
   config-path: ${FIREBASE_CONFIG_PATH:firebase-service-account.json}
+
+# Swagger UI / OpenAPI configuration
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+    persist-authorization: true
+  api-docs:
+    path: /v3/api-docs

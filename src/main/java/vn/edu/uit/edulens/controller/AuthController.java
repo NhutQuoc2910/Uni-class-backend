@@ -1,5 +1,8 @@
 package vn.edu.uit.edulens.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,6 +19,8 @@ import vn.edu.uit.edulens.service.AuthService;
 
 import java.util.Map;
 
+@Tag(name = "1. Authentication", description = "Các API xác thực và tài khoản (Public)")
+@SecurityRequirements
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
@@ -23,6 +28,8 @@ public class AuthController {
 
     private final AuthService authService;
 
+    @Operation(summary = "Đăng ký tài khoản mới (Sinh viên / Giảng viên)")
+    @SecurityRequirements
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<UserResponse>> register(@Valid @RequestBody RegisterRequest request) {
         UserResponse user = authService.register(request);
@@ -32,18 +39,24 @@ public class AuthController {
         );
     }
 
+    @Operation(summary = "Đăng nhập bằng Email hoặc SĐT")
+    @SecurityRequirements
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse authResponse = authService.login(request);
         return ResponseEntity.ok(ApiResponse.success("Đăng nhập thành công", authResponse));
     }
 
+    @Operation(summary = "Yêu cầu mã OTP quên mật khẩu qua Email")
+    @SecurityRequirements
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         String message = authService.forgotPassword(request);
         return ResponseEntity.ok(ApiResponse.success(message, message));
     }
 
+    @Operation(summary = "Xác thực mã OTP 6 số")
+    @SecurityRequirements
     @PostMapping("/verify-otp")
     public ResponseEntity<ApiResponse<Map<String, Object>>> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
         boolean verified = authService.verifyOtp(request);
@@ -53,6 +66,8 @@ public class AuthController {
         ));
     }
 
+    @Operation(summary = "Đặt lại mật khẩu mới sau khi xác thực OTP thành công")
+    @SecurityRequirements
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         String message = authService.resetPassword(request);
