@@ -17,6 +17,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final DemoDataSeeder demoDataSeeder;
 
     @Override
     public void run(String... args) {
@@ -33,5 +34,7 @@ public class DataInitializer implements CommandLineRunner {
             userRepository.save(admin);
             log.info("Initialized default admin account: admin@uit.edu.vn / Admin@123");
         }
+
+        demoDataSeeder.seed();
     }
 }
