@@ -13,6 +13,8 @@ public enum ErrorCode {
     INVALID_OTP(40003, "Mã OTP không chính xác", HttpStatus.BAD_REQUEST),
     OTP_EXPIRED(40004, "Mã OTP đã hết hạn, vui lòng yêu cầu mã mới", HttpStatus.BAD_REQUEST),
     OTP_NOT_FOUND(40005, "Chưa có yêu cầu OTP cho email này", HttpStatus.BAD_REQUEST),
+    WRONG_CURRENT_PASSWORD(40006, "Mật khẩu hiện tại không chính xác", HttpStatus.BAD_REQUEST),
+    SAME_AS_OLD_PASSWORD(40007, "Mật khẩu mới không được trùng với mật khẩu hiện tại", HttpStatus.BAD_REQUEST),
     UNAUTHORIZED(40100, "Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn", HttpStatus.UNAUTHORIZED),
     FORBIDDEN(40300, "Bạn không có quyền thực hiện thao tác này", HttpStatus.FORBIDDEN),
     INVALID_INPUT(40000, "Dữ liệu gửi lên không hợp lệ", HttpStatus.BAD_REQUEST),
