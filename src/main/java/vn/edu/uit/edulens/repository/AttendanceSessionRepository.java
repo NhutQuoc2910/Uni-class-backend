@@ -13,4 +13,5 @@ import java.util.UUID;
 public interface AttendanceSessionRepository extends JpaRepository<AttendanceSession, UUID> {
     List<AttendanceSession> findByCourseClassIdOrderByCreatedAtDesc(UUID classId);
     Optional<AttendanceSession> findFirstByCourseClassIdAndStatus(UUID classId, SessionStatus status);
+    long countByCourseClassIdAndStatus(UUID classId, SessionStatus status);
 }

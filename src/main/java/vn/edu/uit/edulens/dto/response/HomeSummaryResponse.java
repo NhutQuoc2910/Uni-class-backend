@@ -6,14 +6,20 @@ import java.util.List;
 public class HomeSummaryResponse {
     private int activeCoursesCount;
     private int pendingAssignmentsCount;
+    private int attendanceRate;
     private List<CourseClassItem> courses = new ArrayList<>();
     private List<AssignmentItem> dueSoonAssignments = new ArrayList<>();
 
     public HomeSummaryResponse() {}
 
     public HomeSummaryResponse(int activeCoursesCount, int pendingAssignmentsCount, List<CourseClassItem> courses, List<AssignmentItem> dueSoonAssignments) {
+        this(activeCoursesCount, pendingAssignmentsCount, 0, courses, dueSoonAssignments);
+    }
+
+    public HomeSummaryResponse(int activeCoursesCount, int pendingAssignmentsCount, int attendanceRate, List<CourseClassItem> courses, List<AssignmentItem> dueSoonAssignments) {
         this.activeCoursesCount = activeCoursesCount;
         this.pendingAssignmentsCount = pendingAssignmentsCount;
+        this.attendanceRate = attendanceRate;
         this.courses = courses != null ? courses : new ArrayList<>();
         this.dueSoonAssignments = dueSoonAssignments != null ? dueSoonAssignments : new ArrayList<>();
     }
@@ -32,6 +38,14 @@ public class HomeSummaryResponse {
 
     public void setPendingAssignmentsCount(int pendingAssignmentsCount) {
         this.pendingAssignmentsCount = pendingAssignmentsCount;
+    }
+
+    public int getAttendanceRate() {
+        return attendanceRate;
+    }
+
+    public void setAttendanceRate(int attendanceRate) {
+        this.attendanceRate = attendanceRate;
     }
 
     public List<CourseClassItem> getCourses() {
