@@ -5,13 +5,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.uit.edulens.dto.request.AttendanceCheckInRequest;
+import vn.edu.uit.edulens.dto.request.OpenQrSessionRequest;
 import vn.edu.uit.edulens.dto.response.AttendanceCheckInResponse;
+import vn.edu.uit.edulens.dto.response.LiveAttendanceSessionResponse;
 import vn.edu.uit.edulens.entity.AttendanceRecord;
 import vn.edu.uit.edulens.entity.AttendanceSession;
 import vn.edu.uit.edulens.entity.ClassMember;
 import vn.edu.uit.edulens.entity.CourseClass;
 import vn.edu.uit.edulens.entity.User;
 import vn.edu.uit.edulens.entity.enums.AttendanceStatus;
+import vn.edu.uit.edulens.entity.enums.ClassStatus;
 import vn.edu.uit.edulens.entity.enums.SessionStatus;
 import vn.edu.uit.edulens.exception.AppException;
 import vn.edu.uit.edulens.exception.ErrorCode;
@@ -22,6 +25,7 @@ import vn.edu.uit.edulens.repository.CourseClassRepository;
 import vn.edu.uit.edulens.repository.UserRepository;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -38,6 +42,86 @@ public class AttendanceService {
     private final ClassMemberRepository classMemberRepository;
     private final CourseClassRepository courseClassRepository;
     private final UserRepository userRepository;
+
+    @Transactional
+    public LiveAttendanceSessionResponse openSession(UUID classId, OpenQrSessionRequest request) {
+        CourseClass cc = courseClassRepository.findById(classId)
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+
+        if (cc.getStatus() == ClassStatus.ARCHIVED) {
+            throw new AppException(ErrorCode.CLASS_ARCHIVED);
+        }
+
+        String wifiBssid = (request != null && request.getWifiBssid() != null && !request.getWifiBssid().isBlank())
+                ? request.getWifiBssid().trim()
+                : "00:11:22:33:44:55";
+        Double latitude = (request != null && request.getLatitude() != null)
+                ? request.getLatitude()
+                : 10.8700;
+        Double longitude = (request != null && request.getLongitude() != null)
+                ? request.getLongitude()
+                : 106.8031;
+        Double radiusMeters = (request != null && request.getRadiusMeters() != null && request.getRadiusMeters() > 0)
+                ? request.getRadiusMeters()
+                : 50.0;
+
+        Optional<AttendanceSession> existingOpenOpt =
+                attendanceSessionRepository.findFirstByCourseClassIdAndStatus(classId, SessionStatus.OPEN);
+
+        AttendanceSession session;
+        if (existingOpenOpt.isPresent()) {
+            session = existingOpenOpt.get();
+            if (request != null) {
+                if (request.getWifiBssid() != null && !request.getWifiBssid().isBlank()) {
+                    session.setWifiBssid(wifiBssid);
+                }
+                if (request.getLatitude() != null) {
+                    session.setLatitude(latitude);
+                }
+                if (request.getLongitude() != null) {
+                    session.setLongitude(longitude);
+                }
+                if (request.getRadiusMeters() != null && request.getRadiusMeters() > 0) {
+                    session.setRadiusMeters(radiusMeters);
+                }
+            }
+        } else {
+            session = AttendanceSession.builder()
+                    .id(UUID.randomUUID())
+                    .courseClass(cc)
+                    .wifiBssid(wifiBssid)
+                    .latitude(latitude)
+                    .longitude(longitude)
+                    .radiusMeters(radiusMeters)
+                    .status(SessionStatus.OPEN)
+                    .createdAt(Instant.now())
+                    .build();
+        }
+
+        AttendanceSession saved = attendanceSessionRepository.save(session);
+        AttendanceSession effective = saved != null ? saved : session;
+        return buildLiveSessionResponse(effective);
+    }
+
+    @Transactional(readOnly = true)
+    public LiveAttendanceSessionResponse getLiveSession(UUID sessionId) {
+        AttendanceSession session = attendanceSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new AppException(ErrorCode.SESSION_NOT_FOUND));
+        return buildLiveSessionResponse(session);
+    }
+
+    @Transactional
+    public LiveAttendanceSessionResponse closeSession(UUID sessionId) {
+        AttendanceSession session = attendanceSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new AppException(ErrorCode.SESSION_NOT_FOUND));
+
+        session.setStatus(SessionStatus.CLOSED);
+        session.setClosedAt(Instant.now());
+
+        AttendanceSession saved = attendanceSessionRepository.save(session);
+        AttendanceSession effective = saved != null ? saved : session;
+        return buildLiveSessionResponse(effective);
+    }
 
     @Transactional
     public AttendanceCheckInResponse checkIn(UUID studentId, AttendanceCheckInRequest request) {
@@ -154,6 +238,60 @@ public class AttendanceService {
                 .wifiVerified(true)
                 .gpsVerified(true)
                 .distanceMeters(distanceMeters)
+                .build();
+    }
+
+    private LiveAttendanceSessionResponse buildLiveSessionResponse(AttendanceSession session) {
+        CourseClass cc = session.getCourseClass();
+        UUID classId = cc != null ? cc.getId() : null;
+        int totalStudents = classId != null ? (int) classMemberRepository.countByCourseClassId(classId) : 0;
+
+        List<AttendanceRecord> records = attendanceRecordRepository.findBySessionId(session.getId());
+        List<LiveAttendanceSessionResponse.AttendeeItem> attendees = new ArrayList<>();
+        int presentCount = 0;
+
+        if (records != null) {
+            for (AttendanceRecord r : records) {
+                User student = r.getStudent();
+                String studentName = student != null ? student.getFullName() : "";
+                AttendanceStatus st = r.getStatus() != null ? r.getStatus() : AttendanceStatus.PRESENT;
+                if (st == AttendanceStatus.PRESENT) {
+                    presentCount++;
+                }
+                attendees.add(LiveAttendanceSessionResponse.AttendeeItem.builder()
+                        .studentId(student != null ? student.getId() : null)
+                        .studentName(studentName)
+                        .studentCode(ClassService.extractStudentCode(student))
+                        .avatarInitial(ClassService.extractLecturerInitial(studentName))
+                        .status(st.name())
+                        .scannedAt(r.getScannedAt() != null ? r.getScannedAt().toString() : "")
+                        .deviceId(r.getDeviceId())
+                        .build());
+            }
+        }
+
+        if (totalStudents < presentCount) {
+            totalStudents = presentCount;
+        }
+        int absentCount = Math.max(0, totalStudents - presentCount);
+
+        return LiveAttendanceSessionResponse.builder()
+                .sessionId(session.getId())
+                .classId(classId)
+                .classCode(cc != null ? cc.getCode() : "")
+                .className(cc != null ? cc.getName() : "")
+                .room(cc != null ? cc.getRoom() : "")
+                .inviteCode(cc != null ? cc.getInviteCode() : "")
+                .status(session.getStatus() != null ? session.getStatus().name() : SessionStatus.OPEN.name())
+                .wifiBssid(session.getWifiBssid())
+                .latitude(session.getLatitude())
+                .longitude(session.getLongitude())
+                .radiusMeters(session.getRadiusMeters())
+                .createdAt(session.getCreatedAt() != null ? session.getCreatedAt().toString() : Instant.now().toString())
+                .totalStudents(totalStudents)
+                .presentCount(presentCount)
+                .absentCount(absentCount)
+                .attendees(attendees)
                 .build();
     }
 
