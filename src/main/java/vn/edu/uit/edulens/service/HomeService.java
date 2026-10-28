@@ -58,11 +58,14 @@ public class HomeService {
                 totalPossibleAttendance += closedSessions;
                 totalPresentAttendance += presentSessions;
 
+                String lecturerName = cc.getLecturer() != null ? cc.getLecturer().getFullName() : "";
                 courses.add(new CourseClassItem(
                         cc.getId(),
                         cc.getCode(),
                         cc.getName(),
                         cc.getSemester(),
+                        cc.getRoom(),
+                        lecturerName,
                         progress,
                         enrolled
                 ));
@@ -93,11 +96,14 @@ public class HomeService {
                 totalPossibleAttendance += classPossible;
                 totalPresentAttendance += classPresent;
 
+                String lecturerName = cc.getLecturer() != null ? cc.getLecturer().getFullName() : "";
                 courses.add(new CourseClassItem(
                         cc.getId(),
                         cc.getCode(),
                         cc.getName(),
                         cc.getSemester(),
+                        cc.getRoom(),
+                        lecturerName,
                         progress,
                         enrolled
                 ));

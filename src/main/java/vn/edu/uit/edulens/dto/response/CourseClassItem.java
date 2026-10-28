@@ -7,16 +7,24 @@ public class CourseClassItem {
     private String code;
     private String name;
     private String semester;
+    private String room;
+    private String lecturerName;
     private int progress;
     private int enrolledCount;
 
     public CourseClassItem() {}
 
     public CourseClassItem(UUID id, String code, String name, String semester, int progress, int enrolledCount) {
+        this(id, code, name, semester, null, null, progress, enrolledCount);
+    }
+
+    public CourseClassItem(UUID id, String code, String name, String semester, String room, String lecturerName, int progress, int enrolledCount) {
         this.id = id;
         this.code = code;
         this.name = name;
         this.semester = semester;
+        this.room = room;
+        this.lecturerName = lecturerName;
         this.progress = progress;
         this.enrolledCount = enrolledCount;
     }
@@ -51,6 +59,22 @@ public class CourseClassItem {
 
     public void setSemester(String semester) {
         this.semester = semester;
+    }
+
+    public String getRoom() {
+        return room;
+    }
+
+    public void setRoom(String room) {
+        this.room = room;
+    }
+
+    public String getLecturerName() {
+        return lecturerName;
+    }
+
+    public void setLecturerName(String lecturerName) {
+        this.lecturerName = lecturerName;
     }
 
     public int getProgress() {
