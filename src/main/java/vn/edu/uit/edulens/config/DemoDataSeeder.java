@@ -172,6 +172,19 @@ public class DemoDataSeeder {
                             .session(session).student(student3).deviceId("device-demo-st3").status(AttendanceStatus.PRESENT).scannedAt(sessionTime.plus(Duration.ofMinutes(4))).build());
                 }
             }
+
+            // Add 1 OPEN AttendanceSession for the first class (NT118.Q11)
+            if ("NT118.Q11".equals(cc.getCode())) {
+                attendanceSessionRepository.save(AttendanceSession.builder()
+                        .courseClass(cc)
+                        .wifiBssid("00:11:22:33:44:55")
+                        .latitude(10.8700)
+                        .longitude(106.8031)
+                        .radiusMeters(50.0)
+                        .status(SessionStatus.OPEN)
+                        .createdAt(now)
+                        .build());
+            }
         }
 
         log.info("Demo data seeded successfully!");
