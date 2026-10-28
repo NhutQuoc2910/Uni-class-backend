@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.uit.edulens.dto.response.ClassDetailResponse;
+import vn.edu.uit.edulens.dto.response.ClassGradesResponse;
 import vn.edu.uit.edulens.dto.response.CourseClassItem;
 import vn.edu.uit.edulens.dto.response.NotificationItemResponse;
 import vn.edu.uit.edulens.entity.*;
@@ -219,6 +220,65 @@ public class ClassService {
     }
 
     @Transactional(readOnly = true)
+    public ClassGradesResponse getClassGrades(UUID classId, UUID studentId) {
+        CourseClass cc = courseClassRepository.findById(classId)
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+
+        String lecturerName = cc.getLecturer() != null ? cc.getLecturer().getFullName() : "";
+        String lecturerInitial = extractLecturerInitial(lecturerName);
+
+        List<Assignment> assignments = assignmentRepository.findByCourseClassIdOrderByDeadlineAsc(classId);
+        List<ClassGradesResponse.GradeItem> gradeItems = new ArrayList<>();
+
+        double scoreSum = 0.0;
+        int gradedCount = 0;
+
+        for (Assignment a : assignments) {
+            Optional<Submission> subOpt = studentId != null
+                    ? submissionRepository.findByAssignmentIdAndStudentId(a.getId(), studentId)
+                    : Optional.empty();
+            boolean submitted = subOpt.isPresent();
+            Double score = subOpt.map(Submission::getScore).orElse(null);
+            String feedback = subOpt.map(Submission::getFeedback).orElse(null);
+            String submittedAt = subOpt
+                    .filter(s -> s.getSubmittedAt() != null)
+                    .map(s -> s.getSubmittedAt().toString())
+                    .orElse(null);
+
+            if (score != null) {
+                scoreSum += score;
+                gradedCount++;
+            }
+
+            gradeItems.add(ClassGradesResponse.GradeItem.builder()
+                    .assignmentId(a.getId())
+                    .assignmentTitle(a.getTitle())
+                    .submittedAt(submittedAt)
+                    .submitted(submitted)
+                    .score(score)
+                    .feedback(feedback)
+                    .lecturerName(lecturerName)
+                    .lecturerInitial(lecturerInitial)
+                    .build());
+        }
+
+        double averageScore = gradedCount > 0
+                ? Math.round((scoreSum / gradedCount) * 10.0) / 10.0
+                : 0.0;
+
+        return ClassGradesResponse.builder()
+                .classId(cc.getId())
+                .classCode(cc.getCode())
+                .className(cc.getName())
+                .lecturerName(lecturerName)
+                .averageScore(averageScore)
+                .gradedCount(gradedCount)
+                .totalAssignments(assignments.size())
+                .grades(gradeItems)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
     public List<NotificationItemResponse> getNotifications(UUID userId, Role role) {
         Instant now = Instant.now();
         List<CourseClass> userClasses = new ArrayList<>();
@@ -334,5 +394,14 @@ public class ClassService {
                 progress,
                 enrolled
         );
+    }
+
+    private String extractLecturerInitial(String fullName) {
+        if (fullName == null || fullName.isBlank()) {
+            return "GV";
+        }
+        String[] parts = fullName.trim().split("\\s+");
+        String lastPart = parts[parts.length - 1];
+        return !lastPart.isEmpty() ? lastPart.substring(0, 1).toUpperCase() : "GV";
     }
 }

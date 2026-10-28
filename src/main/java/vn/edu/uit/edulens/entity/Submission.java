@@ -35,7 +35,7 @@ public class Submission {
     @Column(name = "file_url", nullable = false)
     private String fileUrl;
 
-    @Column(name = "submitted_at", nullable = false, updatable = false)
+    @Column(name = "submitted_at", nullable = false)
     @Builder.Default
     private Instant submittedAt = Instant.now();
 

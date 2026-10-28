@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import vn.edu.uit.edulens.dto.request.JoinClassRequest;
 import vn.edu.uit.edulens.dto.response.ApiResponse;
 import vn.edu.uit.edulens.dto.response.ClassDetailResponse;
+import vn.edu.uit.edulens.dto.response.ClassGradesResponse;
 import vn.edu.uit.edulens.dto.response.CourseClassItem;
 import vn.edu.uit.edulens.security.CustomUserDetails;
 import vn.edu.uit.edulens.service.ClassService;
@@ -18,7 +19,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-@Tag(name = "4. Classes", description = "Các API danh sách lớp học, tham gia lớp và chi tiết lớp học")
+@Tag(name = "4. Classes", description = "Các API danh sách lớp học, tham gia lớp, chi tiết lớp học và bảng điểm")
 @RestController
 @RequestMapping("/api/v1/classes")
 @RequiredArgsConstructor
@@ -63,5 +64,16 @@ public class ClassController {
                 userDetails.getUser().getRole()
         );
         return ResponseEntity.ok(ApiResponse.success(detail));
+    }
+
+    @Operation(summary = "Lấy bảng điểm trung bình và nhận xét giảng viên của lớp học")
+    @GetMapping("/{classId}/grades")
+    public ResponseEntity<ApiResponse<ClassGradesResponse>> getClassGrades(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID classId
+    ) {
+        UUID studentId = userDetails != null ? userDetails.getId() : null;
+        ClassGradesResponse grades = classService.getClassGrades(classId, studentId);
+        return ResponseEntity.ok(ApiResponse.success(grades));
     }
 }
