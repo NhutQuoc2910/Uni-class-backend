@@ -2,7 +2,9 @@ package vn.edu.uit.edulens.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.uit.edulens.dto.request.AttendanceCheckInRequest;
@@ -28,6 +30,7 @@ import vn.edu.uit.edulens.repository.UserRepository;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -43,6 +46,20 @@ public class AttendanceService {
     private final ClassMemberRepository classMemberRepository;
     private final CourseClassRepository courseClassRepository;
     private final UserRepository userRepository;
+
+    @Autowired(required = false)
+    private SimpMessagingTemplate messagingTemplate;
+
+    @Autowired(required = false)
+    private FirebaseService firebaseService;
+
+    public void setMessagingTemplate(SimpMessagingTemplate messagingTemplate) {
+        this.messagingTemplate = messagingTemplate;
+    }
+
+    public void setFirebaseService(FirebaseService firebaseService) {
+        this.firebaseService = firebaseService;
+    }
 
     @Value("${app.attendance.allow-demo-bypass:false}")
     private boolean allowDemoBypass = false;
@@ -108,6 +125,24 @@ public class AttendanceService {
 
         AttendanceSession saved = attendanceSessionRepository.save(session);
         AttendanceSession effective = saved != null ? saved : session;
+
+        if (firebaseService != null) {
+            try {
+                firebaseService.notifyClassStudents(
+                        classId,
+                        "Điểm danh: " + cc.getName(),
+                        "Phiên điểm danh đã được mở. Vui lòng quét mã QR để điểm danh.",
+                        Map.of(
+                                "type", "ATTENDANCE_SESSION_OPEN",
+                                "classId", classId.toString(),
+                                "sessionId", effective.getId().toString()
+                        )
+                );
+            } catch (Exception e) {
+                log.warn("Failed to notify students of opened attendance session: {}", e.getMessage());
+            }
+        }
+
         return buildLiveSessionResponse(effective);
     }
 
@@ -128,7 +163,17 @@ public class AttendanceService {
 
         AttendanceSession saved = attendanceSessionRepository.save(session);
         AttendanceSession effective = saved != null ? saved : session;
-        return buildLiveSessionResponse(effective);
+        LiveAttendanceSessionResponse liveSession = buildLiveSessionResponse(effective);
+
+        if (messagingTemplate != null) {
+            try {
+                messagingTemplate.convertAndSend("/topic/attendance-sessions/" + effective.getId() + "/live", liveSession);
+            } catch (Exception e) {
+                log.warn("Failed to broadcast live attendance close update: {}", e.getMessage());
+            }
+        }
+
+        return liveSession;
     }
 
     @Transactional
@@ -218,6 +263,15 @@ public class AttendanceService {
 
             AttendanceRecord saved = attendanceRecordRepository.save(newRecord);
             record = saved != null ? saved : newRecord;
+        }
+
+        if (messagingTemplate != null) {
+            try {
+                LiveAttendanceSessionResponse liveSession = buildLiveSessionResponse(session);
+                messagingTemplate.convertAndSend("/topic/attendance-sessions/" + session.getId() + "/live", liveSession);
+            } catch (Exception e) {
+                log.warn("Failed to broadcast live attendance update for session {}: {}", session.getId(), e.getMessage());
+            }
         }
 
         CourseClass cc = session.getCourseClass();

@@ -2,6 +2,7 @@ package vn.edu.uit.edulens.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.uit.edulens.dto.request.CreateClassRequest;
@@ -21,6 +22,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -40,6 +42,13 @@ public class ClassService {
     private final SubmissionRepository submissionRepository;
     private final AttendanceSessionRepository attendanceSessionRepository;
     private final AttendanceRecordRepository attendanceRecordRepository;
+
+    @Autowired(required = false)
+    private FirebaseService firebaseService;
+
+    public void setFirebaseService(FirebaseService firebaseService) {
+        this.firebaseService = firebaseService;
+    }
 
     @Transactional(readOnly = true)
     public List<CourseClassItem> getClasses(UUID userId, Role role) {
@@ -270,6 +279,27 @@ public class ClassService {
 
         Material saved = materialRepository.save(material);
         Material effective = saved != null ? saved : material;
+
+        boolean isUrgentAnn = Boolean.TRUE.equals(request.getUrgentAnnouncement())
+                || "URGENT_ANNOUNCEMENT".equalsIgnoreCase(request.getFileType())
+                || "URGENT_ANNOUNCEMENT".equalsIgnoreCase(fileType);
+
+        if (isUrgentAnn && firebaseService != null) {
+            try {
+                firebaseService.notifyClassStudents(
+                        classId,
+                        "Thông báo khẩn: " + effective.getTitle(),
+                        effective.getTitle(),
+                        Map.of(
+                                "type", "URGENT_ANNOUNCEMENT",
+                                "classId", classId.toString(),
+                                "materialId", effective.getId().toString()
+                        )
+                );
+            } catch (Exception e) {
+                log.warn("Failed to notify students of urgent announcement: {}", e.getMessage());
+            }
+        }
 
         return new ClassDetailResponse.MaterialItem(
                 effective.getId(),

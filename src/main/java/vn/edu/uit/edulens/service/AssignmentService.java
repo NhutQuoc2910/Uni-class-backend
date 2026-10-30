@@ -2,6 +2,7 @@ package vn.edu.uit.edulens.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.uit.edulens.dto.request.CreateAssignmentRequest;
@@ -52,6 +53,13 @@ public class AssignmentService {
     private final CourseClassRepository courseClassRepository;
     private final ClassMemberRepository classMemberRepository;
 
+    @Autowired(required = false)
+    private FirebaseService firebaseService;
+
+    public void setFirebaseService(FirebaseService firebaseService) {
+        this.firebaseService = firebaseService;
+    }
+
     @Transactional(readOnly = true)
     public AssignmentDetailResponse getAssignmentDetail(UUID assignmentId, UUID studentId) {
         Assignment assignment = assignmentRepository.findById(assignmentId)
@@ -93,6 +101,24 @@ public class AssignmentService {
 
         Assignment saved = assignmentRepository.save(assignment);
         Assignment effective = saved != null ? saved : assignment;
+
+        if (Boolean.TRUE.equals(request.getNotifyStudents()) && firebaseService != null) {
+            try {
+                String deadlineDisplay = request.getDeadline() != null ? request.getDeadline() : "";
+                firebaseService.notifyClassStudents(
+                        classId,
+                        "Bài tập mới: " + effective.getTitle(),
+                        "Hạn nộp: " + deadlineDisplay,
+                        Map.of(
+                                "type", "NEW_ASSIGNMENT",
+                                "classId", classId.toString(),
+                                "assignmentId", effective.getId().toString()
+                        )
+                );
+            } catch (Exception e) {
+                log.warn("Failed to notify students of new assignment: {}", e.getMessage());
+            }
+        }
 
         return new ClassDetailResponse.ClassAssignmentItem(
                 effective.getId(),
