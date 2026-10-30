@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.uit.edulens.dto.request.*;
@@ -43,6 +44,7 @@ public class ClassController {
         return ResponseEntity.ok(ApiResponse.success(classes));
     }
 
+    @PreAuthorize("hasAuthority('ROLE_LECTURER')")
     @Operation(summary = "Giảng viên tạo lớp học mới và sinh mã mời 7 ký tự")
     @PostMapping
     public ResponseEntity<ApiResponse<CourseClassItem>> createClass(
@@ -53,6 +55,7 @@ public class ClassController {
         return ResponseEntity.ok(ApiResponse.success("Tạo lớp học mới thành công", created));
     }
 
+    @PreAuthorize("hasAuthority('ROLE_LECTURER')")
     @Operation(summary = "Giảng viên lưu trữ lớp học cuối kỳ")
     @PutMapping("/{classId}/archive")
     public ResponseEntity<ApiResponse<CourseClassItem>> archiveClass(
@@ -88,6 +91,7 @@ public class ClassController {
         return ResponseEntity.ok(ApiResponse.success(detail));
     }
 
+    @PreAuthorize("hasAuthority('ROLE_LECTURER')")
     @Operation(summary = "Lấy danh sách sinh viên trong lớp kèm thống kê chuyên cần và bài tập")
     @GetMapping("/{classId}/members")
     public ResponseEntity<ApiResponse<List<ClassMemberItemResponse>>> getClassMembers(
@@ -97,6 +101,7 @@ public class ClassController {
         return ResponseEntity.ok(ApiResponse.success(members));
     }
 
+    @PreAuthorize("hasAuthority('ROLE_LECTURER')")
     @Operation(summary = "Giảng viên xóa sinh viên khỏi lớp học")
     @DeleteMapping("/{classId}/members/{studentId}")
     public ResponseEntity<ApiResponse<Void>> removeClassMember(
@@ -107,6 +112,7 @@ public class ClassController {
         return ResponseEntity.ok(ApiResponse.success("Đã xóa sinh viên khỏi lớp học", null));
     }
 
+    @PreAuthorize("hasAuthority('ROLE_LECTURER')")
     @Operation(summary = "Giảng viên đăng tải tài liệu hoặc thông báo mới cho lớp học")
     @PostMapping("/{classId}/materials")
     public ResponseEntity<ApiResponse<ClassDetailResponse.MaterialItem>> createMaterial(
@@ -117,6 +123,7 @@ public class ClassController {
         return ResponseEntity.ok(ApiResponse.success("Đăng tải tài liệu thành công", created));
     }
 
+    @PreAuthorize("hasAuthority('ROLE_LECTURER')")
     @Operation(summary = "Giảng viên tạo bài tập mới cho lớp học")
     @PostMapping("/{classId}/assignments")
     public ResponseEntity<ApiResponse<ClassDetailResponse.ClassAssignmentItem>> createAssignment(
@@ -127,6 +134,7 @@ public class ClassController {
         return ResponseEntity.ok(ApiResponse.success("Tạo bài tập mới thành công", created));
     }
 
+    @PreAuthorize("hasAuthority('ROLE_LECTURER')")
     @Operation(summary = "Giảng viên mở phiên điểm danh QR động cho lớp học")
     @PostMapping("/{classId}/attendance-sessions")
     public ResponseEntity<ApiResponse<LiveAttendanceSessionResponse>> openAttendanceSession(
@@ -137,6 +145,7 @@ public class ClassController {
         return ResponseEntity.ok(ApiResponse.success("Mở phiên điểm danh thành công", session));
     }
 
+    @PreAuthorize("hasAuthority('ROLE_LECTURER')")
     @Operation(summary = "Lấy thống kê cuối kỳ của lớp học (chuyên cần, cảnh báo vắng >20%, phổ điểm 6 cột)")
     @GetMapping("/{classId}/statistics")
     public ResponseEntity<ApiResponse<ClassStatisticsResponse>> getClassStatistics(

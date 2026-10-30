@@ -5,10 +5,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.uit.edulens.dto.request.AttendanceCheckInRequest;
-import vn.edu.uit.edulens.dto.request.OpenQrSessionRequest;
 import vn.edu.uit.edulens.dto.response.ApiResponse;
 import vn.edu.uit.edulens.dto.response.AttendanceCheckInResponse;
 import vn.edu.uit.edulens.dto.response.LiveAttendanceSessionResponse;
@@ -35,16 +35,7 @@ public class AttendanceController {
         return ResponseEntity.ok(ApiResponse.success("Điểm danh thành công", response));
     }
 
-    @Operation(summary = "Giảng viên mở phiên điểm danh QR động cho lớp học")
-    @PostMapping("/attendance/sessions/class/{classId}")
-    public ResponseEntity<ApiResponse<LiveAttendanceSessionResponse>> openSession(
-            @PathVariable UUID classId,
-            @RequestBody(required = false) OpenQrSessionRequest request
-    ) {
-        LiveAttendanceSessionResponse session = attendanceService.openSession(classId, request);
-        return ResponseEntity.ok(ApiResponse.success("Mở phiên điểm danh thành công", session));
-    }
-
+    @PreAuthorize("hasAuthority('ROLE_LECTURER')")
     @Operation(summary = "Giảng viên theo dõi trực tiếp danh sách sinh viên đã điểm danh trong phiên")
     @GetMapping({"/attendance-sessions/{sessionId}/live", "/attendance/sessions/{sessionId}/live"})
     public ResponseEntity<ApiResponse<LiveAttendanceSessionResponse>> getLiveSession(
@@ -54,6 +45,7 @@ public class AttendanceController {
         return ResponseEntity.ok(ApiResponse.success(live));
     }
 
+    @PreAuthorize("hasAuthority('ROLE_LECTURER')")
     @Operation(summary = "Giảng viên chốt và đóng phiên điểm danh")
     @PutMapping({"/attendance-sessions/{sessionId}/close", "/attendance/sessions/{sessionId}/close"})
     public ResponseEntity<ApiResponse<LiveAttendanceSessionResponse>> closeSession(

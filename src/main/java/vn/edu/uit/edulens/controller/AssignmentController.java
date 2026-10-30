@@ -5,15 +5,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import vn.edu.uit.edulens.dto.request.CreateAssignmentRequest;
 import vn.edu.uit.edulens.dto.request.GradeSubmissionRequest;
 import vn.edu.uit.edulens.dto.request.SubmitAssignmentRequest;
 import vn.edu.uit.edulens.dto.response.ApiResponse;
 import vn.edu.uit.edulens.dto.response.AssignmentDetailResponse;
 import vn.edu.uit.edulens.dto.response.AssignmentSubmissionListResponse;
-import vn.edu.uit.edulens.dto.response.ClassDetailResponse;
 import vn.edu.uit.edulens.security.CustomUserDetails;
 import vn.edu.uit.edulens.service.AssignmentService;
 
@@ -53,16 +52,7 @@ public class AssignmentController {
         return ResponseEntity.ok(ApiResponse.success("Nộp bài tập thành công", submitted));
     }
 
-    @Operation(summary = "Giảng viên tạo bài tập mới cho lớp học")
-    @PostMapping("/classes/{classId}")
-    public ResponseEntity<ApiResponse<ClassDetailResponse.ClassAssignmentItem>> createAssignmentForClass(
-            @PathVariable UUID classId,
-            @Valid @RequestBody CreateAssignmentRequest request
-    ) {
-        ClassDetailResponse.ClassAssignmentItem created = assignmentService.createAssignment(classId, request);
-        return ResponseEntity.ok(ApiResponse.success("Tạo bài tập mới thành công", created));
-    }
-
+    @PreAuthorize("hasAuthority('ROLE_LECTURER')")
     @Operation(summary = "Giảng viên lấy danh sách bài nộp của bài tập kèm thống kê tiến độ")
     @GetMapping("/{assignmentId}/submissions")
     public ResponseEntity<ApiResponse<AssignmentSubmissionListResponse>> getAssignmentSubmissions(
@@ -72,6 +62,7 @@ public class AssignmentController {
         return ResponseEntity.ok(ApiResponse.success(submissions));
     }
 
+    @PreAuthorize("hasAuthority('ROLE_LECTURER')")
     @Operation(summary = "Giảng viên chấm điểm và nhận xét bài nộp của sinh viên")
     @PutMapping("/{assignmentId}/submissions/{studentId}/grade")
     public ResponseEntity<ApiResponse<AssignmentSubmissionListResponse>> gradeSubmission(

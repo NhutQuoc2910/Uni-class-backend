@@ -1,5 +1,6 @@
 package vn.edu.uit.edulens.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -18,5 +19,6 @@ public class VerifyOtpRequest {
 
     @NotBlank(message = "Mã OTP không được để trống")
     @Size(min = 6, max = 6, message = "Mã OTP phải có đúng 6 chữ số")
+    @JsonAlias({"otp", "otpCode"})
     private String otpCode;
 }
