@@ -2,6 +2,11 @@ spring:
   application:
     name: edulens-backend-test
 
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 30MB
+
   datasource:
     url: jdbc:postgresql://localhost:5432/edulens_test
     username: postgres
@@ -29,3 +34,16 @@ jwt:
 
 firebase:
   config-path: firebase-service-account.json
+
+storage:
+  supabase:
+    url: ""
+    key: ""
+    bucket: uniclass-files
+  local-dir: target/test-uploads
+
+app:
+  attendance:
+    allow-demo-bypass: true
+  demo:
+    seed-enabled: false

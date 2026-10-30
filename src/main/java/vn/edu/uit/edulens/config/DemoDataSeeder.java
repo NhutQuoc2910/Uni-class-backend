@@ -2,6 +2,7 @@ package vn.edu.uit.edulens.config;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,10 +30,22 @@ public class DemoDataSeeder {
     private final AttendanceRecordRepository attendanceRecordRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Value("${app.demo.seed-enabled:false}")
+    private boolean seedEnabled = false;
+
+    public void setSeedEnabled(boolean seedEnabled) {
+        this.seedEnabled = seedEnabled;
+    }
+
     private static final String DEMO_PDF_URL = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
 
     @Transactional
     public void seed() {
+        if (!seedEnabled) {
+            log.info("Demo data seeding is disabled (app.demo.seed-enabled=false). Skipping demo seed.");
+            return;
+        }
+
         if (userRepository.findByEmail("lecturer@uit.edu.vn").isPresent()) {
             log.info("Demo data already exists (lecturer@uit.edu.vn found). Skipping demo seed.");
             return;

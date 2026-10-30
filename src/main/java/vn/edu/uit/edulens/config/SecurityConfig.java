@@ -62,6 +62,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/v1/auth/**",
+                                "/api/v1/storage/files/**",
                                 "/ws/**",
                                 "/error",
                                 "/v3/api-docs/**",

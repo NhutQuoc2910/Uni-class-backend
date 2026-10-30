@@ -2,6 +2,11 @@ spring:
   application:
     name: edulens-backend
 
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 30MB
+
   datasource:
     # Hỗ trợ cả SPRING_DATASOURCE_URL, DB_JDBC_URL (midterm_plan) và DB_URL
     url: ${SPRING_DATASOURCE_URL:${DB_JDBC_URL:${DB_URL:jdbc:postgresql://localhost:5432/edulens}}}
@@ -53,6 +58,21 @@ jwt:
 # Firebase configuration
 firebase:
   config-path: ${FIREBASE_CONFIG_PATH:firebase-service-account.json}
+
+# Storage configuration
+storage:
+  supabase:
+    url: ${SUPABASE_URL:}
+    key: ${SUPABASE_SERVICE_ROLE_KEY:}
+    bucket: ${SUPABASE_STORAGE_BUCKET:uniclass-files}
+  local-dir: ${STORAGE_LOCAL_DIR:uploads}
+
+# Application feature flags & configuration
+app:
+  attendance:
+    allow-demo-bypass: ${ALLOW_DEMO_BYPASS:false}
+  demo:
+    seed-enabled: ${SEED_DEMO_DATA:false}
 
 # Swagger UI / OpenAPI configuration
 springdoc:

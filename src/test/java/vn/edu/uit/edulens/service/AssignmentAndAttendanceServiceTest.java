@@ -277,6 +277,140 @@ class AssignmentAndAttendanceServiceTest {
     }
 
     @Test
+    @DisplayName("checkIn: Payload rotating QR hợp lệ UNICLASS:<classCode>:<sessionId>:<timestampMs> điểm danh thành công")
+    void checkIn_RotatingQr_ValidTimestamp_Success() {
+        when(attendanceSessionRepository.findById(sessionId)).thenReturn(Optional.of(openSession));
+        when(userRepository.findById(studentId)).thenReturn(Optional.of(student));
+        when(attendanceRecordRepository.findBySessionIdAndDeviceId(sessionId, "ANDROID-DEV-001"))
+                .thenReturn(Optional.empty());
+        when(attendanceRecordRepository.findBySessionIdAndStudentId(sessionId, studentId))
+                .thenReturn(Optional.empty());
+        when(attendanceRecordRepository.save(any(AttendanceRecord.class))).thenAnswer(i -> i.getArgument(0));
+
+        long currentTimestamp = System.currentTimeMillis() - 5000; // 5 seconds ago
+        String rotatingQrPayload = "UNICLASS:NT118.Q11:" + sessionId + ":" + currentTimestamp;
+
+        AttendanceCheckInRequest request = AttendanceCheckInRequest.builder()
+                .sessionId(rotatingQrPayload)
+                .wifiBssid("00:11:22:33:44:55")
+                .latitude(10.8701)
+                .longitude(106.8032)
+                .deviceId("ANDROID-DEV-001")
+                .build();
+
+        AttendanceCheckInResponse response = attendanceService.checkIn(studentId, request);
+
+        assertNotNull(response);
+        assertEquals(sessionId, response.getSessionId());
+        assertTrue(response.isQrVerified());
+    }
+
+    @Test
+    @DisplayName("checkIn: Payload rotating QR đã hết hạn (>60s) ném lỗi QR_EXPIRED")
+    void checkIn_RotatingQr_ExpiredTimestamp_ThrowsQrExpired() {
+        long expiredTimestamp = System.currentTimeMillis() - 65000; // 65 seconds ago (> 60s)
+        String expiredPayload = "UNICLASS:NT118.Q11:" + sessionId + ":" + expiredTimestamp;
+
+        AttendanceCheckInRequest request = AttendanceCheckInRequest.builder()
+                .sessionId(expiredPayload)
+                .wifiBssid("00:11:22:33:44:55")
+                .latitude(10.8700)
+                .longitude(106.8031)
+                .deviceId("ANDROID-DEV-001")
+                .build();
+
+        AppException ex = assertThrows(AppException.class, () -> attendanceService.checkIn(studentId, request));
+        assertEquals(ErrorCode.QR_EXPIRED, ex.getErrorCode());
+    }
+
+    @Test
+    @DisplayName("checkIn: Payload rotating QR thời gian tương lai (>10s) ném lỗi QR_EXPIRED")
+    void checkIn_RotatingQr_FutureSkew_ThrowsQrExpired() {
+        long futureTimestamp = System.currentTimeMillis() + 15000; // 15 seconds in future (> 10s)
+        String futurePayload = "UNICLASS:NT118.Q11:" + sessionId + ":" + futureTimestamp;
+
+        AttendanceCheckInRequest request = AttendanceCheckInRequest.builder()
+                .sessionId(futurePayload)
+                .wifiBssid("00:11:22:33:44:55")
+                .latitude(10.8700)
+                .longitude(106.8031)
+                .deviceId("ANDROID-DEV-001")
+                .build();
+
+        AppException ex = assertThrows(AppException.class, () -> attendanceService.checkIn(studentId, request));
+        assertEquals(ErrorCode.QR_EXPIRED, ex.getErrorCode());
+    }
+
+    @Test
+    @DisplayName("checkIn: Payload static QR UNICLASS:<classCode>:<sessionId> điểm danh thành công")
+    void checkIn_StaticStructuredQr_Success() {
+        when(attendanceSessionRepository.findById(sessionId)).thenReturn(Optional.of(openSession));
+        when(userRepository.findById(studentId)).thenReturn(Optional.of(student));
+        when(attendanceRecordRepository.findBySessionIdAndDeviceId(sessionId, "ANDROID-DEV-001"))
+                .thenReturn(Optional.empty());
+        when(attendanceRecordRepository.findBySessionIdAndStudentId(sessionId, studentId))
+                .thenReturn(Optional.empty());
+        when(attendanceRecordRepository.save(any(AttendanceRecord.class))).thenAnswer(i -> i.getArgument(0));
+
+        String staticPayload = "UNICLASS:NT118.Q11:" + sessionId;
+
+        AttendanceCheckInRequest request = AttendanceCheckInRequest.builder()
+                .sessionId(staticPayload)
+                .wifiBssid("00:11:22:33:44:55")
+                .latitude(10.8700)
+                .longitude(106.8031)
+                .deviceId("ANDROID-DEV-001")
+                .build();
+
+        AttendanceCheckInResponse response = attendanceService.checkIn(studentId, request);
+        assertNotNull(response);
+        assertEquals(sessionId, response.getSessionId());
+    }
+
+    @Test
+    @DisplayName("checkIn: Demo bypass bị tắt (allowDemoBypass=false) ném SESSION_NOT_FOUND với DEMO_OPEN")
+    void checkIn_DemoBypassDisabled_ThrowsSessionNotFound() {
+        attendanceService.setAllowDemoBypass(false);
+
+        AttendanceCheckInRequest request = AttendanceCheckInRequest.builder()
+                .sessionId("DEMO_OPEN")
+                .wifiBssid("00:11:22:33:44:55")
+                .latitude(10.8700)
+                .longitude(106.8031)
+                .deviceId("ANDROID-DEV-001")
+                .build();
+
+        AppException ex = assertThrows(AppException.class, () -> attendanceService.checkIn(studentId, request));
+        assertEquals(ErrorCode.SESSION_NOT_FOUND, ex.getErrorCode());
+    }
+
+    @Test
+    @DisplayName("checkIn: Demo bypass được bật (allowDemoBypass=true) thành công với DEMO_OPEN")
+    void checkIn_DemoBypassEnabled_Success() {
+        attendanceService.setAllowDemoBypass(true);
+        when(attendanceSessionRepository.findFirstByStatusOrderByCreatedAtDesc(SessionStatus.OPEN))
+                .thenReturn(Optional.of(openSession));
+        when(userRepository.findById(studentId)).thenReturn(Optional.of(student));
+        when(attendanceRecordRepository.findBySessionIdAndDeviceId(sessionId, "ANDROID-DEV-001"))
+                .thenReturn(Optional.empty());
+        when(attendanceRecordRepository.findBySessionIdAndStudentId(sessionId, studentId))
+                .thenReturn(Optional.empty());
+        when(attendanceRecordRepository.save(any(AttendanceRecord.class))).thenAnswer(i -> i.getArgument(0));
+
+        AttendanceCheckInRequest request = AttendanceCheckInRequest.builder()
+                .sessionId("DEMO_OPEN")
+                .wifiBssid("00:11:22:33:44:55")
+                .latitude(10.8700)
+                .longitude(106.8031)
+                .deviceId("ANDROID-DEV-001")
+                .build();
+
+        AttendanceCheckInResponse response = attendanceService.checkIn(studentId, request);
+        assertNotNull(response);
+        assertEquals(sessionId, response.getSessionId());
+    }
+
+    @Test
     @DisplayName("getClassGrades: Tính điểm trung bình chính xác và ánh xạ nhận xét của giảng viên")
     void getClassGrades_ComputesAverageAndMapsFeedback() {
         Assignment a1 = Assignment.builder()

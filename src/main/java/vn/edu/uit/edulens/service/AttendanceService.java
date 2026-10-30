@@ -2,6 +2,7 @@ package vn.edu.uit.edulens.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.uit.edulens.dto.request.AttendanceCheckInRequest;
@@ -42,6 +43,13 @@ public class AttendanceService {
     private final ClassMemberRepository classMemberRepository;
     private final CourseClassRepository courseClassRepository;
     private final UserRepository userRepository;
+
+    @Value("${app.attendance.allow-demo-bypass:false}")
+    private boolean allowDemoBypass = false;
+
+    public void setAllowDemoBypass(boolean allowDemoBypass) {
+        this.allowDemoBypass = allowDemoBypass;
+    }
 
     @Transactional
     public LiveAttendanceSessionResponse openSession(UUID classId, OpenQrSessionRequest request) {
@@ -296,7 +304,31 @@ public class AttendanceService {
     }
 
     private AttendanceSession resolveSession(UUID studentId, String rawSessionId) {
+        if (rawSessionId.startsWith("UNICLASS:")) {
+            String[] parts = rawSessionId.split(":");
+            if (parts.length >= 4) {
+                String sessionIdStr = parts[2];
+                long timestampMs;
+                try {
+                    timestampMs = Long.parseLong(parts[3]);
+                } catch (NumberFormatException e) {
+                    throw new AppException(ErrorCode.QR_EXPIRED);
+                }
+                long now = System.currentTimeMillis();
+                if (now - timestampMs > 60000 || timestampMs > now + 10000) {
+                    throw new AppException(ErrorCode.QR_EXPIRED);
+                }
+                rawSessionId = sessionIdStr;
+            } else if (parts.length >= 3) {
+                rawSessionId = parts[2];
+            }
+        }
+
         if (rawSessionId.equalsIgnoreCase("DEMO_OPEN") || rawSessionId.equalsIgnoreCase("ACTIVE_DEMO")) {
+            if (!allowDemoBypass) {
+                throw new AppException(ErrorCode.SESSION_NOT_FOUND);
+            }
+
             Optional<AttendanceSession> openOpt =
                     attendanceSessionRepository.findFirstByStatusOrderByCreatedAtDesc(SessionStatus.OPEN);
             if (openOpt.isPresent()) {
