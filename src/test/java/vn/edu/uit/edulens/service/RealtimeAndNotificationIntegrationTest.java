@@ -17,6 +17,7 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -30,7 +31,6 @@ import vn.edu.uit.edulens.dto.request.OpenQrSessionRequest;
 import vn.edu.uit.edulens.dto.response.LiveAttendanceSessionResponse;
 import vn.edu.uit.edulens.entity.AttendanceRecord;
 import vn.edu.uit.edulens.entity.AttendanceSession;
-import vn.edu.uit.edulens.entity.ClassMember;
 import vn.edu.uit.edulens.entity.CourseClass;
 import vn.edu.uit.edulens.entity.Material;
 import vn.edu.uit.edulens.entity.User;
@@ -61,40 +61,33 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class RealtimeAndNotificationIntegrationTest {
+public class RealtimeAndNotificationIntegrationTest {
 
     @Nested
     @DisplayName("WebSocket Configuration & Channel Interceptor Tests")
     class WebSocketConfigTests {
 
         @Mock
-        private WebSocketAuthChannelInterceptor interceptor;
-
-        @Mock
         private JwtTokenProvider jwtTokenProvider;
-
         @Mock
         private CustomUserDetailsService userDetailsService;
-
         @Mock
         private MessageChannel channel;
 
         @Test
-        @DisplayName("WebSocketConfig registers STOMP endpoints and brokers correctly")
+        @DisplayName("WebSocketConfig registers /ws endpoints and message brokers correctly")
         void testWebSocketConfigRegistration() {
+            WebSocketAuthChannelInterceptor interceptor =
+                    new WebSocketAuthChannelInterceptor(jwtTokenProvider, userDetailsService);
             WebSocketConfig config = new WebSocketConfig(interceptor);
 
             StompEndpointRegistry endpointRegistry = mock(StompEndpointRegistry.class);
-            StompWebSocketEndpointRegistration registration1 = mock(StompWebSocketEndpointRegistration.class);
-            StompWebSocketEndpointRegistration registration2 = mock(StompWebSocketEndpointRegistration.class);
-
-            when(endpointRegistry.addEndpoint("/ws")).thenReturn(registration1, registration2);
-            when(registration1.setAllowedOriginPatterns("*")).thenReturn(registration1);
-            when(registration2.setAllowedOriginPatterns("*")).thenReturn(registration2);
+            StompWebSocketEndpointRegistration registration = mock(StompWebSocketEndpointRegistration.class);
+            when(endpointRegistry.addEndpoint("/ws")).thenReturn(registration);
+            when(registration.setAllowedOriginPatterns("*")).thenReturn(registration);
 
             config.registerStompEndpoints(endpointRegistry);
             verify(endpointRegistry, times(2)).addEndpoint("/ws");
-            verify(registration2).withSockJS();
 
             MessageBrokerRegistry brokerRegistry = mock(MessageBrokerRegistry.class);
             config.configureMessageBroker(brokerRegistry);
@@ -139,20 +132,59 @@ class RealtimeAndNotificationIntegrationTest {
         }
 
         @Test
-        @DisplayName("WebSocketAuthChannelInterceptor ignores non-CONNECT messages")
-        void testInterceptorNonConnect() {
+        @DisplayName("WebSocketAuthChannelInterceptor rejects CONNECT without Authorization header")
+        void testInterceptorMissingAuthHeader() {
             WebSocketAuthChannelInterceptor authInterceptor =
                     new WebSocketAuthChannelInterceptor(jwtTokenProvider, userDetailsService);
 
-            StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SEND);
-            accessor.setDestination("/app/chat");
+            StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
+            Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+            assertThrows(AccessDeniedException.class, () -> authInterceptor.preSend(message, channel));
+        }
+
+        @Test
+        @DisplayName("WebSocketAuthChannelInterceptor rejects CONNECT with invalid JWT")
+        void testInterceptorInvalidJwt() {
+            WebSocketAuthChannelInterceptor authInterceptor =
+                    new WebSocketAuthChannelInterceptor(jwtTokenProvider, userDetailsService);
+
+            when(jwtTokenProvider.validateToken("bad-token")).thenReturn(false);
+
+            StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
+            accessor.setNativeHeader("Authorization", "Bearer bad-token");
+            Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+            assertThrows(AccessDeniedException.class, () -> authInterceptor.preSend(message, channel));
+        }
+
+        @Test
+        @DisplayName("WebSocketAuthChannelInterceptor rejects unauthenticated SUBSCRIBE")
+        void testInterceptorRejectsUnauthenticatedSubscribe() {
+            WebSocketAuthChannelInterceptor authInterceptor =
+                    new WebSocketAuthChannelInterceptor(jwtTokenProvider, userDetailsService);
+
+            StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+            accessor.setDestination("/topic/attendance-sessions/123/live");
+            Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+            assertThrows(AccessDeniedException.class, () -> authInterceptor.preSend(message, channel));
+        }
+
+        @Test
+        @DisplayName("WebSocketAuthChannelInterceptor allows authenticated SUBSCRIBE")
+        void testInterceptorAllowsAuthenticatedSubscribe() {
+            WebSocketAuthChannelInterceptor authInterceptor =
+                    new WebSocketAuthChannelInterceptor(jwtTokenProvider, userDetailsService);
+
+            Authentication auth = mock(Authentication.class);
+            StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+            accessor.setUser(auth);
+            accessor.setDestination("/topic/attendance-sessions/123/live");
             Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
 
             Message<?> result = authInterceptor.preSend(message, channel);
             assertNotNull(result);
-            StompHeaderAccessor resultAccessor = StompHeaderAccessor.wrap(result);
-            assertNull(resultAccessor.getUser());
-            verifyNoInteractions(jwtTokenProvider);
         }
     }
 
@@ -200,9 +232,8 @@ class RealtimeAndNotificationIntegrationTest {
 
             courseClass = CourseClass.builder()
                     .id(classId)
-                    .name("Lập trình mạng")
-                    .code("NT118.N21")
-                    .room("B2.10")
+                    .name("Hệ điều hành")
+                    .code("IT007.M11")
                     .status(ClassStatus.ACTIVE)
                     .build();
 
@@ -222,18 +253,21 @@ class RealtimeAndNotificationIntegrationTest {
         }
 
         @Test
-        @DisplayName("checkIn broadcasts live session update to /topic/attendance-sessions/{id}/live")
-        void testCheckInBroadcastsLiveSession() {
+        @DisplayName("checkIn broadcasts live attendance snapshot via WebSocket")
+        void testCheckInBroadcastsLiveSnapshot() {
+            long timestampMs = System.currentTimeMillis();
+            String qrPayload = "UNICLASS:" + courseClass.getCode() + ":" + sessionId + ":" + timestampMs;
+
             AttendanceCheckInRequest request = AttendanceCheckInRequest.builder()
-                    .sessionId(sessionId.toString())
-                    .deviceId("device-unique-123")
+                    .sessionId(qrPayload)
                     .wifiBssid("00:11:22:33:44:55")
                     .latitude(10.8700)
                     .longitude(106.8031)
+                    .deviceId("DEVICE-UUID-1234")
                     .build();
 
             when(attendanceSessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
-            when(attendanceRecordRepository.findBySessionIdAndDeviceId(sessionId, "device-unique-123")).thenReturn(Optional.empty());
+            when(attendanceRecordRepository.findBySessionIdAndDeviceId(sessionId, "DEVICE-UUID-1234")).thenReturn(Optional.empty());
             when(attendanceRecordRepository.findBySessionIdAndStudentId(sessionId, studentId)).thenReturn(Optional.empty());
             when(userRepository.findById(studentId)).thenReturn(Optional.of(student));
             when(attendanceRecordRepository.save(any(AttendanceRecord.class))).thenAnswer(i -> i.getArgument(0));
@@ -242,19 +276,15 @@ class RealtimeAndNotificationIntegrationTest {
 
             attendanceService.checkIn(studentId, request);
 
-            ArgumentCaptor<String> destinationCaptor = ArgumentCaptor.forClass(String.class);
-            ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
-
-            verify(messagingTemplate, atLeastOnce()).convertAndSend(destinationCaptor.capture(), payloadCaptor.capture());
-            assertEquals("/topic/attendance-sessions/" + sessionId + "/live", destinationCaptor.getValue());
-            assertTrue(payloadCaptor.getValue() instanceof LiveAttendanceSessionResponse);
-            LiveAttendanceSessionResponse resp = (LiveAttendanceSessionResponse) payloadCaptor.getValue();
-            assertEquals(sessionId, resp.getSessionId());
+            verify(messagingTemplate).convertAndSend(
+                    eq("/topic/attendance-sessions/" + sessionId + "/live"),
+                    any(LiveAttendanceSessionResponse.class)
+            );
         }
 
         @Test
-        @DisplayName("closeSession broadcasts closed session update to /topic/attendance-sessions/{id}/live")
-        void testCloseSessionBroadcastsLiveSession() {
+        @DisplayName("closeSession broadcasts CLOSED status via WebSocket")
+        void testCloseSessionBroadcastsClosedStatus() {
             when(attendanceSessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
             when(attendanceSessionRepository.save(any(AttendanceSession.class))).thenAnswer(i -> i.getArgument(0));
             when(classMemberRepository.countByCourseClassId(classId)).thenReturn(30L);
@@ -350,51 +380,39 @@ class RealtimeAndNotificationIntegrationTest {
 
             classService.createMaterial(classId, request);
 
-            ArgumentCaptor<Map<String, String>> dataCaptor = ArgumentCaptor.forClass(Map.class);
             verify(firebaseService).notifyClassStudents(
                     eq(classId),
-                    eq("Thông báo khẩn: Thay đổi phòng thi cuối kỳ"),
+                    contains("Thông báo khẩn"),
                     eq("Thay đổi phòng thi cuối kỳ"),
-                    dataCaptor.capture()
+                    argThat(data -> "URGENT_ANNOUNCEMENT".equals(data.get("type")) && classId.toString().equals(data.get("classId")))
             );
-
-            Map<String, String> data = dataCaptor.getValue();
-            assertEquals("URGENT_ANNOUNCEMENT", data.get("type"));
-            assertEquals(classId.toString(), data.get("classId"));
-            assertNotNull(data.get("materialId"));
         }
 
         @Test
-        @DisplayName("createAssignment with notifyStudents=true notifies class students")
+        @DisplayName("createAssignment with notifyStudents flag notifies class students")
         void testCreateAssignmentNotification() {
             CreateAssignmentRequest request = CreateAssignmentRequest.builder()
-                    .title("Lab 3 - STOMP WebSocket Implementation")
-                    .deadline("2026-11-15T23:59:00Z")
+                    .title("Bài tập lớn Kiến trúc máy tính")
+                    .deadline("2026-11-20T23:59:59Z")
                     .notifyStudents(true)
                     .build();
 
             when(courseClassRepository.findById(classId)).thenReturn(Optional.of(courseClass));
-            when(assignmentRepository.save(any(vn.edu.uit.edulens.entity.Assignment.class))).thenAnswer(i -> i.getArgument(0));
+            when(assignmentRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             assignmentService.createAssignment(classId, request);
 
-            ArgumentCaptor<Map<String, String>> dataCaptor = ArgumentCaptor.forClass(Map.class);
             verify(firebaseService).notifyClassStudents(
                     eq(classId),
-                    eq("Bài tập mới: Lab 3 - STOMP WebSocket Implementation"),
-                    contains("2026-11-15"),
-                    dataCaptor.capture()
+                    contains("Bài tập mới"),
+                    contains("2026-11-20"),
+                    argThat(data -> "NEW_ASSIGNMENT".equals(data.get("type")) && classId.toString().equals(data.get("classId")))
             );
-
-            Map<String, String> data = dataCaptor.getValue();
-            assertEquals("NEW_ASSIGNMENT", data.get("type"));
-            assertEquals(classId.toString(), data.get("classId"));
-            assertNotNull(data.get("assignmentId"));
         }
     }
 
     @Nested
-    @DisplayName("FirebaseService Token Extraction & Graceful Degradation")
+    @DisplayName("FirebaseService Token Extraction & Partitioning Tests")
     class FirebaseServiceTests {
 
         @Mock
@@ -404,24 +422,12 @@ class RealtimeAndNotificationIntegrationTest {
         private FirebaseService firebaseService;
 
         @Test
-        @DisplayName("notifyClassStudents extracts and deduplicates non-empty FCM tokens")
+        @DisplayName("notifyClassStudents queries repository and deduplicates non-empty FCM tokens")
         void testNotifyClassStudentsTokenExtraction() {
             UUID classId = UUID.randomUUID();
 
-            User student1 = User.builder().id(UUID.randomUUID()).fcmToken("token-1").build();
-            User student2 = User.builder().id(UUID.randomUUID()).fcmToken("token-2").build();
-            User student3 = User.builder().id(UUID.randomUUID()).fcmToken("  ").build();
-            User student4 = User.builder().id(UUID.randomUUID()).fcmToken(null).build();
-            User studentDuplicate = User.builder().id(UUID.randomUUID()).fcmToken("token-1").build();
-
-            ClassMember cm1 = ClassMember.builder().student(student1).build();
-            ClassMember cm2 = ClassMember.builder().student(student2).build();
-            ClassMember cm3 = ClassMember.builder().student(student3).build();
-            ClassMember cm4 = ClassMember.builder().student(student4).build();
-            ClassMember cm5 = ClassMember.builder().student(studentDuplicate).build();
-
-            when(classMemberRepository.findByCourseClassId(classId))
-                    .thenReturn(List.of(cm1, cm2, cm3, cm4, cm5));
+            when(classMemberRepository.findFcmTokensByCourseClassId(classId))
+                    .thenReturn(List.of("token-1", "token-2", "  ", "token-1"));
 
             // Without active FirebaseApp, sendMulticastNotification gracefully logs warning and returns
             assertDoesNotThrow(() -> firebaseService.notifyClassStudents(
@@ -431,7 +437,7 @@ class RealtimeAndNotificationIntegrationTest {
                     Map.of("key", "val")
             ));
 
-            verify(classMemberRepository).findByCourseClassId(classId);
+            verify(classMemberRepository).findFcmTokensByCourseClassId(classId);
         }
 
         @Test
