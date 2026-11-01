@@ -2,6 +2,7 @@ package vn.edu.uit.edulens.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import vn.edu.uit.edulens.entity.enums.OtpPurpose;
 import vn.edu.uit.edulens.entity.enums.Role;
 import vn.edu.uit.edulens.entity.enums.UserStatus;
 
@@ -48,11 +49,19 @@ public class User {
     @Column(name = "fcm_token")
     private String fcmToken;
 
-    @Column(name = "otp_code", length = 10)
+    @Column(name = "otp_code", length = 64)
     private String otpCode;
 
     @Column(name = "otp_expires_at")
     private Instant otpExpiresAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "otp_purpose", length = 30)
+    private OtpPurpose otpPurpose;
+
+    @Column(name = "otp_failed_attempts", nullable = false)
+    @Builder.Default
+    private int otpFailedAttempts = 0;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default

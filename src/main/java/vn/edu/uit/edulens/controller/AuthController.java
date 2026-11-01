@@ -38,7 +38,17 @@ public class AuthController {
                 HttpStatus.CREATED
         );
     }
+    @Operation(summary = "Gửi OTP xác thực đăng ký")
+    @SecurityRequirements
+    @PostMapping("/send-otp")
+    public ResponseEntity<ApiResponse<String>> sendOtp(
+            @Valid @RequestBody SendOtpRequest request) {
 
+        String message = authService.sendOtp(request);
+
+        return ResponseEntity.ok(ApiResponse.success(message, message));
+    }
+    
     @Operation(summary = "Đăng nhập bằng Email hoặc SĐT")
     @SecurityRequirements
     @PostMapping("/login")

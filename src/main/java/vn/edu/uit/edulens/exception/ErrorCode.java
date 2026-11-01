@@ -33,8 +33,11 @@ public enum ErrorCode {
     UNAUTHORIZED(40100, "Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn", HttpStatus.UNAUTHORIZED),
     FORBIDDEN(40300, "Bạn không có quyền thực hiện thao tác này", HttpStatus.FORBIDDEN),
     INVALID_INPUT(40000, "Dữ liệu gửi lên không hợp lệ", HttpStatus.BAD_REQUEST),
-    INTERNAL_SERVER_ERROR(50000, "Hệ thống gặp sự cố, vui lòng thử lại sau", HttpStatus.INTERNAL_SERVER_ERROR);
-
+    INTERNAL_SERVER_ERROR(50000, "Hệ thống gặp sự cố, vui lòng thử lại sau", HttpStatus.INTERNAL_SERVER_ERROR),
+    OTP_MAX_ATTEMPTS_EXCEEDED(40019, "Bạn đã nhập sai OTP quá số lần cho phép. Vui lòng yêu cầu mã mới", HttpStatus.BAD_REQUEST),
+    OTP_RESEND_TOO_SOON(40020, "Bạn cần chờ trước khi yêu cầu gửi OTP mới", HttpStatus.TOO_MANY_REQUESTS),
+    REGISTRATION_DATA_NOT_FOUND(40021, "Không tìm thấy thông tin đăng ký. Vui lòng đăng ký lại", HttpStatus.BAD_REQUEST),
+    INVALID_OTP_PURPOSE(40022, "Mục đích xác thực OTP không hợp lệ", HttpStatus.BAD_REQUEST);
     private final int code;
     private final String message;
     private final HttpStatus httpStatus;
