@@ -5,7 +5,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,7 +13,6 @@ import org.springframework.web.bind.annotation.RestController;
 import vn.edu.uit.edulens.dto.request.*;
 import vn.edu.uit.edulens.dto.response.ApiResponse;
 import vn.edu.uit.edulens.dto.response.AuthResponse;
-import vn.edu.uit.edulens.dto.response.UserResponse;
 import vn.edu.uit.edulens.service.AuthService;
 
 import java.util.Map;
@@ -27,17 +25,6 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
-
-    @Operation(summary = "Đăng ký tài khoản mới (Sinh viên / Giảng viên)")
-    @SecurityRequirements
-    @PostMapping("/register")
-    public ResponseEntity<ApiResponse<UserResponse>> register(@Valid @RequestBody RegisterRequest request) {
-        UserResponse user = authService.register(request);
-        return new ResponseEntity<>(
-                ApiResponse.success("Đăng ký tài khoản thành công", user),
-                HttpStatus.CREATED
-        );
-    }
     @Operation(summary = "Gửi OTP xác thực đăng ký")
     @SecurityRequirements
     @PostMapping("/send-otp")

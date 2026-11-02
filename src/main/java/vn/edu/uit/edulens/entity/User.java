@@ -55,6 +55,9 @@ public class User {
     @Column(name = "otp_expires_at")
     private Instant otpExpiresAt;
 
+    @Column(name = "otp_last_sent_at")
+    private Instant otpLastSentAt;
+    
     @Enumerated(EnumType.STRING)
     @Column(name = "otp_purpose", length = 30)
     private OtpPurpose otpPurpose;

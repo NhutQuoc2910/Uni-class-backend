@@ -42,30 +42,7 @@ public class AuthService {
     private final SecureRandom secureRandom = new SecureRandom();
     @Value("${OTP_HMAC_SECRET}")
     private String otpHmacSecret;
-    @Transactional
-    public UserResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
-        }
-
-        if (request.getPhone() != null && !request.getPhone().isBlank() && userRepository.existsByPhone(request.getPhone())) {
-            throw new AppException(ErrorCode.PHONE_ALREADY_EXISTS);
-        }
-
-        User user = User.builder()
-                .email(request.getEmail().trim().toLowerCase())
-                .phone(request.getPhone() != null ? request.getPhone().trim() : null)
-                .fullName(request.getFullName().trim())
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .role(request.getRole())
-                .status(UserStatus.ACTIVE)
-                .build();
-
-        User savedUser = userRepository.save(user);
-        log.info("Registered new user with email: {} and role: {}", savedUser.getEmail(), savedUser.getRole());
-        return UserResponse.fromUser(savedUser);
-    }
-
+   
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
         String identifier = request.getIdentifier().trim();
@@ -98,18 +75,37 @@ public class AuthService {
                         new AppException(ErrorCode.USER_NOT_FOUND)
                 );
 
-        // Tạo OTP 6 chữ số
+        Instant now = Instant.now();
+
+        // Giới hạn thời gian gửi lại OTP: tối thiểu 60 giây
+        if (user.getOtpLastSentAt() != null &&
+                now.isBefore(user.getOtpLastSentAt().plusSeconds(60))) {
+
+            throw new AppException(ErrorCode.OTP_RESEND_TOO_SOON);
+        }
+
+        // Tạo OTP ngẫu nhiên gồm 6 chữ số
         String otpCode = String.format(
                 "%06d",
                 secureRandom.nextInt(1_000_000)
         );
 
         // Lưu HMAC thay vì OTP gốc
-        user.setOtpCode(hashOtp(otpCode));
+        user.setOtpCode(
+                hashOtp(email, OtpPurpose.FORGOT_PASSWORD, otpCode)
+        );
+
+        // Thiết lập mục đích và thời hạn OTP
         user.setOtpPurpose(OtpPurpose.FORGOT_PASSWORD);
         user.setOtpExpiresAt(
-                Instant.now().plus(Duration.ofMinutes(5))
+                now.plus(Duration.ofMinutes(5))
         );
+
+        // Reset số lần nhập OTP sai khi cấp mã mới
+        user.setOtpFailedAttempts(0);
+
+        // Lưu thời điểm gửi OTP để giới hạn gửi lại
+        user.setOtpLastSentAt(now);
 
         userRepository.save(user);
 
@@ -122,7 +118,6 @@ public class AuthService {
 
         return "Mã OTP gồm 6 chữ số đã được gửi tới email của bạn";
     }
-
     @Transactional(noRollbackFor = AppException.class)
     public boolean verifyOtp(VerifyOtpRequest request) {
 
@@ -157,7 +152,12 @@ public class AuthService {
             }
 
             // Kiểm tra OTP
-            if (!matchesOtp(inputOtp, pending.getOtpHash())) {
+            if (!matchesOtp(
+                    email,
+                    OtpPurpose.REGISTER,
+                    inputOtp,
+                    pending.getOtpHash()
+            )) {
                 pending.setFailedAttempts(
                         pending.getFailedAttempts() + 1
                 );
@@ -225,7 +225,7 @@ public class AuthService {
 
         throw new AppException(ErrorCode.INVALID_OTP_PURPOSE);
     }
-    @Transactional
+    @Transactional(noRollbackFor = AppException.class)
     public String resetPassword(ResetPasswordRequest request) {
 
         String email = request.getEmail().trim().toLowerCase();
@@ -235,57 +235,104 @@ public class AuthService {
                         new AppException(ErrorCode.USER_NOT_FOUND)
                 );
 
-        // Chỉ chấp nhận OTP dùng cho quên mật khẩu
+        // Xác thực OTP dành riêng cho chức năng quên mật khẩu
         validateOtp(
                 user,
-                request.getOtpCode(),
+                request.getOtpCode().trim(),
                 OtpPurpose.FORGOT_PASSWORD
         );
 
-        // Cập nhật mật khẩu mới
+        // Cập nhật mật khẩu mới bằng BCrypt
         user.setPasswordHash(
                 passwordEncoder.encode(request.getNewPassword())
         );
 
-        // Xóa OTP sau khi đặt lại mật khẩu thành công
+        // Xóa thông tin OTP sau khi đặt lại mật khẩu thành công
         user.setOtpCode(null);
         user.setOtpExpiresAt(null);
         user.setOtpPurpose(null);
 
+        // Reset số lần nhập OTP sai
+        user.setOtpFailedAttempts(0);
+
+        // Lưu thay đổi
         userRepository.save(user);
 
         log.info("Password reset successfully for user: {}", email);
 
         return "Đặt lại mật khẩu thành công";
     }
+    private boolean validateOtp(User user, String inputOtp, OtpPurpose expectedPurpose) {
 
-    private void validateOtp(
-            User user,
-            String inputOtp,
-            OtpPurpose expectedPurpose
-    ) {
+        // 1. Kiểm tra OTP có tồn tại và đủ thông tin không
         if (user.getOtpCode() == null
                 || user.getOtpExpiresAt() == null
                 || user.getOtpPurpose() == null) {
             throw new AppException(ErrorCode.OTP_NOT_FOUND);
         }
 
-        // Kiểm tra OTP có đúng mục đích không
+        // 2. Kiểm tra OTP có đúng mục đích không
         if (user.getOtpPurpose() != expectedPurpose) {
             throw new AppException(ErrorCode.INVALID_OTP_PURPOSE);
         }
 
-        // Kiểm tra hết hạn
+        // 3. Kiểm tra OTP đã hết hạn chưa
         if (!Instant.now().isBefore(user.getOtpExpiresAt())) {
+
+            // Xóa OTP hết hạn
+            user.setOtpCode(null);
+            user.setOtpExpiresAt(null);
+            user.setOtpPurpose(null);
+            user.setOtpFailedAttempts(0);
+
             throw new AppException(ErrorCode.OTP_EXPIRED);
         }
 
-        // So sánh HMAC
-        if (!matchesOtp(inputOtp, user.getOtpCode())) {
+        // 4. Kiểm tra số lần nhập sai đã đạt giới hạn chưa
+        if (user.getOtpFailedAttempts() >= 5) {
+
+            // Vô hiệu hóa OTP
+            user.setOtpCode(null);
+            user.setOtpExpiresAt(null);
+            user.setOtpPurpose(null);
+            user.setOtpFailedAttempts(0);
+
+            throw new AppException(ErrorCode.OTP_MAX_ATTEMPTS_EXCEEDED);
+        }
+
+        // 5. So sánh OTP nhập vào với HMAC đã lưu trong database
+        if (!matchesOtp(
+        user.getOtpCode(),
+        expectedPurpose,
+        user.getEmail(),
+        inputOtp
+        )) {
+
+            // Tăng số lần nhập sai
+            int failedAttempts = user.getOtpFailedAttempts() + 1;
+            user.setOtpFailedAttempts(failedAttempts);
+
+            // Nếu đã sai đủ 5 lần thì vô hiệu hóa OTP
+            if (failedAttempts >= 5) {
+                user.setOtpCode(null);
+                user.setOtpExpiresAt(null);
+                user.setOtpPurpose(null);
+                user.setOtpFailedAttempts(0);
+
+                throw new AppException(ErrorCode.OTP_MAX_ATTEMPTS_EXCEEDED);
+            }
+
             throw new AppException(ErrorCode.INVALID_OTP);
         }
+
+        // 6. OTP hợp lệ
+        return true;
     }
-    private String hashOtp(String otpCode) {
+    private String hashOtp(
+            String email,
+            OtpPurpose purpose,
+            String otpCode
+    ) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
 
@@ -296,25 +343,42 @@ public class AuthService {
 
             mac.init(secretKey);
 
+            String data = email.trim().toLowerCase()
+                    + "|" + purpose.name()
+                    + "|" + otpCode.trim();
+
             byte[] hashBytes = mac.doFinal(
-                    otpCode.getBytes(StandardCharsets.UTF_8)
+                    data.getBytes(StandardCharsets.UTF_8)
             );
 
             return HexFormat.of().formatHex(hashBytes);
 
         } catch (Exception e) {
-            throw new IllegalStateException(
-                    "Không thể tạo HMAC cho OTP", e
-            );
+            throw new IllegalStateException("Không thể tạo HMAC OTP", e);
         }
     }
-    private boolean matchesOtp(String inputOtp, String storedHash) {
-        String inputHash = hashOtp(inputOtp.trim());
+    private boolean matchesOtp(
+            String email,
+            OtpPurpose purpose,
+            String inputOtp,
+            String storedHash
+    ) {
+        if (storedHash == null || storedHash.length() != 64) {
+            return false;
+        }
 
-        byte[] inputBytes = HexFormat.of().parseHex(inputHash);
-        byte[] storedBytes = HexFormat.of().parseHex(storedHash);
+        try {
+            byte[] inputBytes = HexFormat.of().parseHex(
+                    hashOtp(email, purpose, inputOtp)
+            );
 
-        return MessageDigest.isEqual(inputBytes, storedBytes);
+            byte[] storedBytes = HexFormat.of().parseHex(storedHash);
+
+            return MessageDigest.isEqual(inputBytes, storedBytes);
+
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
     @Transactional
     public String sendOtp(SendOtpRequest request) {
@@ -392,7 +456,9 @@ public class AuthService {
                 passwordEncoder.encode(request.getPassword())
         );
         pending.setRole(role);
-        pending.setOtpHash(hashOtp(otpCode));
+        pending.setOtpHash(
+                hashOtp(email, OtpPurpose.REGISTER, otpCode)
+        );
         pending.setOtpExpiresAt(Instant.now().plus(Duration.ofMinutes(5)));
         pending.setFailedAttempts(0);
         pending.setLastSentAt(Instant.now());
