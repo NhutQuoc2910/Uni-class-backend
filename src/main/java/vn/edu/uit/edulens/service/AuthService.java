@@ -301,11 +301,11 @@ public class AuthService {
         }
 
         // 5. So sánh OTP nhập vào với HMAC đã lưu trong database
-        if (!matchesOtp(
-        user.getOtpCode(),
-        expectedPurpose,
-        user.getEmail(),
-        inputOtp
+       if (!matchesOtp(
+            user.getEmail(),
+            expectedPurpose,
+            inputOtp,
+            user.getOtpCode()
         )) {
 
             // Tăng số lần nhập sai
