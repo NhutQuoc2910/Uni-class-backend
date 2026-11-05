@@ -23,6 +23,7 @@ spring:
         prepareThreshold: 0 # Tránh lỗi PgBouncer khi dùng Supabase Pooler
 
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: update
     show-sql: false
