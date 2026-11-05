@@ -36,6 +36,7 @@ import vn.edu.uit.edulens.security.JwtTokenProvider;
 import vn.edu.uit.edulens.service.AssignmentService;
 import vn.edu.uit.edulens.service.AttendanceService;
 import vn.edu.uit.edulens.service.ClassService;
+import vn.edu.uit.edulens.service.ScheduleService;
 
 import java.util.Collections;
 import java.util.UUID;
@@ -77,6 +78,9 @@ public class AuthContractAndRbacSecurityTest {
 
     @MockBean
     private AttendanceService attendanceService;
+
+    @MockBean
+    private ScheduleService scheduleService;
 
     private CustomUserDetails studentDetails;
     private CustomUserDetails lecturerDetails;

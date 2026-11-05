@@ -54,6 +54,7 @@ jwt:
   secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
   expiration-ms: ${JWT_EXPIRATION_MS:604800000} # 7 days
   otp-expiration-minutes: 5
+  otp-hmac-secret: ${OTP_HMAC_SECRET:UniClassDefaultHmacSecretKey2026Fixed}
 
 # Firebase configuration
 firebase:

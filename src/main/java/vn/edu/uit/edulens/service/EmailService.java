@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import vn.edu.uit.edulens.entity.enums.OtpPurpose;
 
@@ -24,15 +25,16 @@ public class EmailService {
     @Value("${OTP_LOG_CODE:false}")
     private boolean logOtpCode;
 
+    @Async
     public void sendOtpEmail(
             String toEmail,
             String otpCode,
             OtpPurpose purpose
     ) {
         if (fromEmail == null || fromEmail.isBlank()) {
-            throw new IllegalStateException(
-                    "Chưa cấu hình spring.mail.username"
-            );
+            log.warn("Chưa cấu hình spring.mail.username. [DEVELOPMENT ONLY] OTP ({}) của {}: {}",
+                    purpose, toEmail, otpCode);
+            return;
         }
 
         String subject;
@@ -128,11 +130,10 @@ public class EmailService {
         } catch (Exception e) {
             log.error("Không thể gửi email OTP tới {}: {}",
                     toEmail, e.getMessage());
-
-            throw new IllegalStateException(
-                    "Không thể gửi email OTP. Vui lòng thử lại sau.",
-                    e
-            );
+            if (logOtpCode) {
+                log.warn("[DEVELOPMENT ONLY - SMTP FALLBACK] OTP ({}) của {}: {}",
+                        purpose, toEmail, otpCode);
+            }
         }
     }
 }

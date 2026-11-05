@@ -40,7 +40,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final SecureRandom secureRandom = new SecureRandom();
-    @Value("${OTP_HMAC_SECRET}")
+    @Value("${jwt.otp-hmac-secret:${OTP_HMAC_SECRET:UniClassDefaultHmacSecretKey2026Fixed}}")
     private String otpHmacSecret;
    
     @Transactional(readOnly = true)

@@ -11,11 +11,12 @@ services:
       - .env
     environment:
       - TZ=Asia/Ho_Chi_Minh
-      # Ánh xạ trực tiếp các biến đúng với Spring property trong application.yml
       - DB_URL=${DB_URL}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
+      - OTP_HMAC_SECRET=${OTP_HMAC_SECRET:-UniClassDefaultHmacSecretKey2026Fixed}
+      - OTP_LOG_CODE=${OTP_LOG_CODE:-false}
       - MAIL_USERNAME=${MAIL_USERNAME}
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - PORT=${PORT:-8080}

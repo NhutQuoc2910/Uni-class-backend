@@ -48,6 +48,8 @@ skills/
 
 ### Logs & Temp ###
 *.log
+*-log.txt
+backend-log.txt
 logs/
 temp/
 tmp/
