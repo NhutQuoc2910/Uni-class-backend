@@ -37,8 +37,43 @@ public enum ErrorCode {
     OTP_MAX_ATTEMPTS_EXCEEDED(40019, "Bạn đã nhập sai OTP quá số lần cho phép. Vui lòng yêu cầu mã mới", HttpStatus.BAD_REQUEST),
     OTP_RESEND_TOO_SOON(40020, "Bạn cần chờ trước khi yêu cầu gửi OTP mới", HttpStatus.TOO_MANY_REQUESTS),
     REGISTRATION_DATA_NOT_FOUND(40021, "Không tìm thấy thông tin đăng ký. Vui lòng đăng ký lại", HttpStatus.BAD_REQUEST),
-    INVALID_OTP_PURPOSE(40022, "Mục đích xác thực OTP không hợp lệ", HttpStatus.BAD_REQUEST);
-    private final int code;
+    INVALID_OTP_PURPOSE(40022, "Mục đích xác thực OTP không hợp lệ", HttpStatus.BAD_REQUEST),
+    SCHEDULE_NOT_FOUND(
+            40407,
+            "Không tìm thấy lịch học",
+            HttpStatus.NOT_FOUND
+    ),
+    SCHEDULE_EXCEPTION_NOT_FOUND(
+            40408,
+            "Không tìm thấy thay đổi lịch học",
+            HttpStatus.NOT_FOUND
+    ),
+    SCHEDULE_CONFLICT(
+            40023,
+            "Lịch học bị trùng với một lịch học khác",
+            HttpStatus.BAD_REQUEST
+    ),
+    INVALID_SCHEDULE_DATE(
+            40024,
+            "Ngày áp dụng không hợp lệ với lịch học định kỳ",
+            HttpStatus.BAD_REQUEST
+    ),
+    SCHEDULE_EXCEPTION_EXISTS(
+            40025,
+            "Ngày học này đã có thay đổi lịch học",
+            HttpStatus.BAD_REQUEST
+    ),
+    INVALID_SCHEDULE_EXCEPTION(
+            40026,
+            "Thông tin thay đổi lịch học không hợp lệ",
+            HttpStatus.BAD_REQUEST
+    ),
+    SCHEDULE_EXCEPTION_ALREADY_PROCESSED(
+            40027,
+            "Thay đổi lịch học đã được xử lý hoặc không thể thay đổi",
+            HttpStatus.BAD_REQUEST
+    );
+        private final int code;
     private final String message;
     private final HttpStatus httpStatus;
 

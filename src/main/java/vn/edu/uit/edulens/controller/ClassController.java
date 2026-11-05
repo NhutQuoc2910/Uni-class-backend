@@ -14,7 +14,7 @@ import vn.edu.uit.edulens.security.CustomUserDetails;
 import vn.edu.uit.edulens.service.AssignmentService;
 import vn.edu.uit.edulens.service.AttendanceService;
 import vn.edu.uit.edulens.service.ClassService;
-
+import vn.edu.uit.edulens.service.ScheduleService;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -25,6 +25,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ClassController {
 
+    private final ScheduleService scheduleService;
     private final ClassService classService;
     private final AssignmentService assignmentService;
     private final AttendanceService attendanceService;
@@ -164,5 +165,120 @@ public class ClassController {
         UUID studentId = userDetails != null ? userDetails.getId() : null;
         ClassGradesResponse grades = classService.getClassGrades(classId, studentId);
         return ResponseEntity.ok(ApiResponse.success(grades));
+    }
+    // ==================== CLASS SCHEDULE ====================
+
+@PreAuthorize("hasAuthority('ROLE_LECTURER')")
+@Operation(summary = "Giảng viên tạo lịch học định kỳ cho lớp")
+@PostMapping("/{classId}/schedules")
+public ResponseEntity<ApiResponse<ClassScheduleResponse>> createSchedule(
+        @AuthenticationPrincipal CustomUserDetails userDetails,
+        @PathVariable UUID classId,
+        @Valid @RequestBody CreateClassScheduleRequest request
+) {
+    ClassScheduleResponse result = scheduleService.createSchedule(
+            classId,
+            userDetails.getId(),
+            request
+    );
+
+    return ResponseEntity.ok(
+            ApiResponse.success("Tạo lịch học thành công", result)
+    );
+}
+
+@PreAuthorize("hasAuthority('ROLE_LECTURER')")
+@Operation(summary = "Giảng viên xem lịch học định kỳ của lớp")
+@GetMapping("/{classId}/schedules")
+public ResponseEntity<ApiResponse<List<ClassScheduleResponse>>> getClassSchedules(
+        @AuthenticationPrincipal CustomUserDetails userDetails,
+        @PathVariable UUID classId
+) {
+    List<ClassScheduleResponse> result = scheduleService.getClassSchedules(
+            classId,
+            userDetails.getId()
+    );
+
+    return ResponseEntity.ok(ApiResponse.success(result));
+}
+
+@PreAuthorize("hasAuthority('ROLE_LECTURER')")
+@Operation(summary = "Giảng viên cập nhật lịch học định kỳ")
+@PutMapping("/{classId}/schedules/{scheduleId}")
+public ResponseEntity<ApiResponse<ClassScheduleResponse>> updateSchedule(
+        @AuthenticationPrincipal CustomUserDetails userDetails,
+        @PathVariable UUID classId,
+        @PathVariable UUID scheduleId,
+        @Valid @RequestBody CreateClassScheduleRequest request
+) {
+    ClassScheduleResponse result = scheduleService.updateSchedule(
+            classId,
+            scheduleId,
+            userDetails.getId(),
+            request
+    );
+
+    return ResponseEntity.ok(
+            ApiResponse.success("Cập nhật lịch học thành công", result)
+    );
+}
+
+// ==================== SCHEDULE EXCEPTIONS ====================
+
+@PreAuthorize("hasAuthority('ROLE_LECTURER')")
+@Operation(summary = "Giảng viên tạo ngoại lệ lịch học: hủy, đổi lịch hoặc học bù")
+@PostMapping("/{classId}/schedule-exceptions")
+public ResponseEntity<ApiResponse<ScheduleExceptionResponse>> createScheduleException(
+        @AuthenticationPrincipal CustomUserDetails userDetails,
+        @PathVariable UUID classId,
+        @Valid @RequestBody CreateScheduleExceptionRequest request
+) {
+    ScheduleExceptionResponse result = scheduleService.createException(
+            classId,
+            userDetails.getId(),
+            request
+    );
+
+    return ResponseEntity.ok(
+            ApiResponse.success("Tạo thay đổi lịch học thành công", result)
+    );
+}
+
+    @PreAuthorize("hasAuthority('ROLE_LECTURER')")
+    @Operation(summary = "Giảng viên công bố thay đổi lịch học")
+    @PatchMapping("/{classId}/schedule-exceptions/{exceptionId}/publish")
+    public ResponseEntity<ApiResponse<ScheduleExceptionResponse>> publishScheduleException(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID classId,
+            @PathVariable UUID exceptionId
+    ) {
+        ScheduleExceptionResponse result = scheduleService.publishException(
+                classId,
+                exceptionId,
+                userDetails.getId()
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Công bố thay đổi lịch học thành công", result)
+        );
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_LECTURER')")
+    @Operation(summary = "Giảng viên thu hồi thay đổi lịch học đã công bố")
+    @PatchMapping("/{classId}/schedule-exceptions/{exceptionId}/revoke")
+    public ResponseEntity<ApiResponse<ScheduleExceptionResponse>> revokeScheduleException(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID classId,
+            @PathVariable UUID exceptionId
+    ) {
+        ScheduleExceptionResponse result = scheduleService.revokeException(
+                classId,
+                exceptionId,
+                userDetails.getId()
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Thu hồi thay đổi lịch học thành công", result)
+        );
     }
 }
