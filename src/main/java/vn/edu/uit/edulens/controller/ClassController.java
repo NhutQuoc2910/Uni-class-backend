@@ -187,20 +187,39 @@ public ResponseEntity<ApiResponse<ClassScheduleResponse>> createSchedule(
     );
 }
 
-@PreAuthorize("hasAuthority('ROLE_LECTURER')")
-@Operation(summary = "Giảng viên xem lịch học định kỳ của lớp")
-@GetMapping("/{classId}/schedules")
-public ResponseEntity<ApiResponse<List<ClassScheduleResponse>>> getClassSchedules(
-        @AuthenticationPrincipal CustomUserDetails userDetails,
-        @PathVariable UUID classId
-) {
-    List<ClassScheduleResponse> result = scheduleService.getClassSchedules(
-            classId,
-            userDetails.getId()
-    );
+    @Operation(summary = "Xem lịch học định kỳ của lớp")
+    @GetMapping("/{classId}/schedules")
+    public ResponseEntity<ApiResponse<List<ClassScheduleResponse>>> getClassSchedules(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID classId
+    ) {
+        if (userDetails == null) {
+            return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
+        }
+        List<ClassScheduleResponse> result = scheduleService.getClassSchedules(
+                classId,
+                userDetails.getId()
+        );
 
-    return ResponseEntity.ok(ApiResponse.success(result));
-}
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @Operation(summary = "Lấy danh sách ngoại lệ lịch học của lớp")
+    @GetMapping("/{classId}/schedule-exceptions")
+    public ResponseEntity<ApiResponse<List<ScheduleExceptionResponse>>> getClassScheduleExceptions(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID classId
+    ) {
+        if (userDetails == null) {
+            return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
+        }
+        List<ScheduleExceptionResponse> exceptions = scheduleService.getClassExceptions(
+                classId,
+                userDetails.getId(),
+                userDetails.getUser().getRole()
+        );
+        return ResponseEntity.ok(ApiResponse.success(exceptions));
+    }
 
 @PreAuthorize("hasAuthority('ROLE_LECTURER')")
 @Operation(summary = "Giảng viên cập nhật lịch học định kỳ")

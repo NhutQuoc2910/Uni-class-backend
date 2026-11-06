@@ -32,4 +32,8 @@ public interface ScheduleExceptionRepository
             ScheduleExceptionType type,
             ScheduleExceptionStatus status
     );
+
+    List<ScheduleException> findByCourseClassIdOrderByOriginalDateDesc(UUID classId);
+
+    List<ScheduleException> findByCourseClassIdInAndStatusOrderByOriginalDateDesc(List<UUID> classIds, ScheduleExceptionStatus status);
 }

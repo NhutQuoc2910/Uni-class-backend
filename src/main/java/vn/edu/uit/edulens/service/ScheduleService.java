@@ -4,10 +4,19 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.uit.edulens.dto.request.CreateClassScheduleRequest;
+import vn.edu.uit.edulens.dto.request.CreateScheduleExceptionRequest;
 import vn.edu.uit.edulens.dto.response.ClassScheduleResponse;
+import vn.edu.uit.edulens.dto.response.ScheduleExceptionResponse;
+import vn.edu.uit.edulens.dto.response.SemesterScheduleResponse;
+import vn.edu.uit.edulens.dto.response.TodayScheduleItem;
+import vn.edu.uit.edulens.entity.ClassMember;
 import vn.edu.uit.edulens.entity.ClassSchedule;
 import vn.edu.uit.edulens.entity.CourseClass;
+import vn.edu.uit.edulens.entity.ScheduleException;
 import vn.edu.uit.edulens.entity.enums.ClassStatus;
+import vn.edu.uit.edulens.entity.enums.Role;
+import vn.edu.uit.edulens.entity.enums.ScheduleExceptionStatus;
+import vn.edu.uit.edulens.entity.enums.ScheduleExceptionType;
 import vn.edu.uit.edulens.exception.AppException;
 import vn.edu.uit.edulens.exception.ErrorCode;
 import vn.edu.uit.edulens.repository.ClassMemberRepository;
@@ -16,23 +25,9 @@ import vn.edu.uit.edulens.repository.CourseClassRepository;
 import vn.edu.uit.edulens.repository.ScheduleExceptionRepository;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-import vn.edu.uit.edulens.dto.request.CreateScheduleExceptionRequest;
-import vn.edu.uit.edulens.dto.response.ScheduleExceptionResponse;
-import vn.edu.uit.edulens.entity.ScheduleException;
-import vn.edu.uit.edulens.entity.enums.ScheduleExceptionStatus;
-import vn.edu.uit.edulens.entity.enums.ScheduleExceptionType;
-
-import java.time.DayOfWeek;
 import java.time.LocalTime;
-import vn.edu.uit.edulens.dto.response.TodayScheduleItem;
-import vn.edu.uit.edulens.entity.ClassMember;
-import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -74,9 +69,17 @@ public class ScheduleService {
     @Transactional(readOnly = true)
     public List<ClassScheduleResponse> getClassSchedules(
             UUID classId,
-            UUID lecturerId
+            UUID userId
     ) {
-        getOwnedClass(classId, lecturerId);
+        CourseClass cc = courseClassRepository.findById(classId)
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+
+        boolean isLecturer = cc.getLecturer() != null && cc.getLecturer().getId().equals(userId);
+        boolean isEnrolled = classMemberRepository.existsByCourseClassIdAndStudentId(classId, userId);
+
+        if (!isLecturer && !isEnrolled) {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
 
         List<ClassSchedule> schedules =
                 classScheduleRepository.findByCourseClassId(classId);
@@ -87,6 +90,41 @@ public class ScheduleService {
             result.add(toScheduleResponse(schedule));
         }
 
+        return result;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ScheduleExceptionResponse> getClassExceptions(
+            UUID classId,
+            UUID userId,
+            Role role
+    ) {
+        List<ScheduleException> exceptions;
+
+        if (role == Role.ROLE_LECTURER) {
+            getOwnedClass(classId, userId);
+            exceptions = scheduleExceptionRepository
+                    .findByCourseClassIdOrderByOriginalDateDesc(classId);
+        } else if (role == Role.ROLE_STUDENT) {
+            if (!courseClassRepository.existsById(classId)) {
+                throw new AppException(ErrorCode.CLASS_NOT_FOUND);
+            }
+            if (!classMemberRepository.existsByCourseClassIdAndStudentId(classId, userId)) {
+                throw new AppException(ErrorCode.FORBIDDEN);
+            }
+            exceptions = scheduleExceptionRepository
+                    .findByCourseClassIdInAndStatusOrderByOriginalDateDesc(
+                            List.of(classId),
+                            ScheduleExceptionStatus.PUBLISHED
+                    );
+        } else {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
+
+        List<ScheduleExceptionResponse> result = new ArrayList<>();
+        for (ScheduleException ex : exceptions) {
+            result.add(toExceptionResponse(ex));
+        }
         return result;
     }
 
@@ -229,9 +267,12 @@ public class ScheduleService {
     }
 
     private ClassScheduleResponse toScheduleResponse(ClassSchedule schedule) {
+        CourseClass cc = schedule.getCourseClass();
         return ClassScheduleResponse.builder()
                 .id(schedule.getId())
-                .classId(schedule.getCourseClass().getId())
+                .classId(cc != null ? cc.getId() : null)
+                .classCode(cc != null ? cc.getCode() : null)
+                .className(cc != null ? cc.getName() : null)
                 .dayOfWeek(schedule.getDayOfWeek())
                 .startTime(schedule.getStartTime())
                 .endTime(schedule.getEndTime())
@@ -482,9 +523,12 @@ public class ScheduleService {
     private ScheduleExceptionResponse toExceptionResponse(
             ScheduleException exception
     ) {
+        CourseClass cc = exception.getCourseClass();
         return ScheduleExceptionResponse.builder()
                 .id(exception.getId())
-                .classId(exception.getCourseClass().getId())
+                .classId(cc != null ? cc.getId() : null)
+                .classCode(cc != null ? cc.getCode() : null)
+                .className(cc != null ? cc.getName() : null)
                 .classScheduleId(
                         exception.getClassSchedule() != null
                                 ? exception.getClassSchedule().getId()
@@ -505,29 +549,47 @@ public class ScheduleService {
                 )
                 .build();
     }
+
+    private List<UUID> getClassIdsForUser(UUID userId, Role role) {
+        if (role == Role.ROLE_LECTURER) {
+            List<CourseClass> classes = courseClassRepository.findByLecturerId(userId);
+            if (classes == null || classes.isEmpty()) {
+                return Collections.emptyList();
+            }
+            return classes.stream()
+                    .map(CourseClass::getId)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .collect(Collectors.toList());
+        } else if (role == Role.ROLE_STUDENT) {
+            List<ClassMember> memberships = classMemberRepository.findByStudentId(userId);
+            if (memberships == null || memberships.isEmpty()) {
+                return Collections.emptyList();
+            }
+            return memberships.stream()
+                    .map(ClassMember::getCourseClass)
+                    .filter(Objects::nonNull)
+                    .map(CourseClass::getId)
+                    .distinct()
+                    .collect(Collectors.toList());
+        }
+        return Collections.emptyList();
+    }
+
     @Transactional(readOnly = true)
     public List<TodayScheduleItem> getTodaySchedule(UUID studentId) {
+        return getTodaySchedule(studentId, Role.ROLE_STUDENT);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TodayScheduleItem> getTodaySchedule(UUID userId, Role role) {
 
         ZoneId zoneId = ZoneId.of("Asia/Ho_Chi_Minh");
         LocalDate today = LocalDate.now(zoneId);
 
         int dayOfWeek = today.getDayOfWeek().getValue();
 
-        // 1. Lấy danh sách lớp sinh viên đã tham gia
-        List<ClassMember> memberships =
-                classMemberRepository.findByStudentId(studentId);
-
-        if (memberships == null || memberships.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        List<UUID> classIds = memberships.stream()
-                .map(ClassMember::getCourseClass)
-                .filter(cc -> cc != null)
-                .map(CourseClass::getId)
-                .distinct()
-                .collect(Collectors.toList());
-
+        List<UUID> classIds = getClassIdsForUser(userId, role);
         if (classIds.isEmpty()) {
             return new ArrayList<>();
         }
@@ -575,16 +637,27 @@ public class ScheduleService {
             ScheduleException exception =
                     exceptionByScheduleId.get(schedule.getId());
 
+            CourseClass cc = schedule.getCourseClass();
+
+            if (cc == null) {
+                continue;
+            }
+
             // Buổi học bị hủy
             if (exception != null
                     && exception.getExceptionType()
                             == ScheduleExceptionType.CANCELLED) {
-                continue;
-            }
-
-            CourseClass cc = schedule.getCourseClass();
-
-            if (cc == null) {
+                result.add(TodayScheduleItem.builder()
+                        .classId(cc.getId())
+                        .scheduleId(schedule.getId())
+                        .classCode(cc.getCode())
+                        .className(cc.getName())
+                        .date(today)
+                        .startTime(schedule.getStartTime())
+                        .endTime(schedule.getEndTime())
+                        .room(schedule.getRoom())
+                        .scheduleType("CANCELLED")
+                        .build());
                 continue;
             }
 
@@ -655,5 +728,34 @@ public class ScheduleService {
 
         return result;
     }
-    
+
+    @Transactional(readOnly = true)
+    public SemesterScheduleResponse getSemesterSchedule(UUID userId, Role role) {
+        List<UUID> classIds = getClassIdsForUser(userId, role);
+        if (classIds.isEmpty()) {
+            return SemesterScheduleResponse.builder()
+                    .regularSchedules(new ArrayList<>())
+                    .scheduleExceptions(new ArrayList<>())
+                    .build();
+        }
+
+        List<ClassSchedule> schedules = classScheduleRepository.findByCourseClassIdIn(classIds);
+        List<ClassScheduleResponse> regularSchedules = schedules.stream()
+                .sorted(Comparator
+                        .comparing(ClassSchedule::getDayOfWeek, Comparator.nullsLast(Integer::compareTo))
+                        .thenComparing(ClassSchedule::getStartTime, Comparator.nullsLast(LocalTime::compareTo)))
+                .map(this::toScheduleResponse)
+                .collect(Collectors.toList());
+
+        List<ScheduleException> exceptions = scheduleExceptionRepository
+                .findByCourseClassIdInAndStatusOrderByOriginalDateDesc(classIds, ScheduleExceptionStatus.PUBLISHED);
+        List<ScheduleExceptionResponse> scheduleExceptions = exceptions.stream()
+                .map(this::toExceptionResponse)
+                .collect(Collectors.toList());
+
+        return SemesterScheduleResponse.builder()
+                .regularSchedules(regularSchedules)
+                .scheduleExceptions(scheduleExceptions)
+                .build();
+    }
 }
