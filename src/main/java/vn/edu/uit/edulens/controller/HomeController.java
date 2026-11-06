@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import vn.edu.uit.edulens.dto.response.ApiResponse;
+import vn.edu.uit.edulens.dto.response.AssignmentItem;
 import vn.edu.uit.edulens.dto.response.HomeSummaryResponse;
 import vn.edu.uit.edulens.dto.response.SemesterScheduleResponse;
 import vn.edu.uit.edulens.dto.response.TodayScheduleItem;
@@ -44,6 +45,19 @@ public class HomeController {
         );
 
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(summary = "Lấy toàn bộ danh sách bài tập cần chấm điểm của giảng viên")
+    @GetMapping("/grading-assignments")
+    public ResponseEntity<ApiResponse<List<AssignmentItem>>> getGradingAssignments(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        if (userDetails == null) {
+            return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
+        }
+
+        List<AssignmentItem> items = homeService.getAllGradingAssignments(userDetails.getId());
+        return ResponseEntity.ok(ApiResponse.success(items));
     }
    
     @Operation(summary = "Lấy lịch học hôm nay của người dùng (sinh viên hoặc giảng viên)")

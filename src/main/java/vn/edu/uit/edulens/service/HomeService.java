@@ -158,4 +158,40 @@ public class HomeService {
                 top5DueSoon
         );
     }
+
+    @Transactional(readOnly = true)
+    public List<AssignmentItem> getAllGradingAssignments(UUID lecturerId) {
+        List<AssignmentItem> allActiveAssignments = new ArrayList<>();
+        if (lecturerId == null) {
+            return allActiveAssignments;
+        }
+
+        List<CourseClass> classes = courseClassRepository.findByLecturerId(lecturerId);
+        if (classes == null) {
+            return allActiveAssignments;
+        }
+
+        for (CourseClass cc : classes) {
+            List<Assignment> classAssignments = assignmentRepository.findByCourseClassIdOrderByDeadlineAsc(cc.getId());
+            if (classAssignments == null) {
+                continue;
+            }
+            for (Assignment a : classAssignments) {
+                boolean needsGrading = submissionRepository.existsByAssignmentIdAndScoreIsNull(a.getId())
+                        || !submissionRepository.existsByAssignmentId(a.getId());
+                if (needsGrading) {
+                    allActiveAssignments.add(new AssignmentItem(
+                            a.getId(),
+                            a.getTitle(),
+                            cc.getName(),
+                            a.getDeadline() != null ? a.getDeadline().toString() : "",
+                            false
+                    ));
+                }
+            }
+        }
+
+        allActiveAssignments.sort(Comparator.comparing(AssignmentItem::getDueDate, Comparator.nullsLast(String::compareTo)));
+        return allActiveAssignments;
+    }
 }

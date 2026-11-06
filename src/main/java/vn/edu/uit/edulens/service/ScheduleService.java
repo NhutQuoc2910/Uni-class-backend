@@ -160,6 +160,35 @@ public class ScheduleService {
         return toScheduleResponse(classScheduleRepository.save(schedule));
     }
 
+    @Transactional
+    public void deleteSchedule(UUID classId, UUID scheduleId, UUID lecturerId) {
+        CourseClass cc = getOwnedClass(classId, lecturerId);
+
+        ClassSchedule schedule = classScheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new AppException(ErrorCode.SCHEDULE_NOT_FOUND));
+
+        if (schedule.getCourseClass() == null || !schedule.getCourseClass().getId().equals(classId)) {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
+
+        List<ScheduleException> exceptions = scheduleExceptionRepository.findByClassScheduleId(scheduleId);
+        if (exceptions != null && !exceptions.isEmpty()) {
+            for (ScheduleException ex : exceptions) {
+                List<ScheduleException> dependents = scheduleExceptionRepository.findByRelatedExceptionId(ex.getId());
+                if (dependents != null && !dependents.isEmpty()) {
+                    for (ScheduleException dep : dependents) {
+                        dep.setRelatedException(null);
+                    }
+                    scheduleExceptionRepository.saveAll(dependents);
+                }
+                ex.setRelatedException(null);
+            }
+            scheduleExceptionRepository.saveAll(exceptions);
+            scheduleExceptionRepository.deleteAll(exceptions);
+        }
+
+        classScheduleRepository.delete(schedule);
+    }
 
     private void validateScheduleRequest(CreateClassScheduleRequest request) {
         if (request == null

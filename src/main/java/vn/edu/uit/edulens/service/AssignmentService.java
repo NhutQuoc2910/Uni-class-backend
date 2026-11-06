@@ -132,6 +132,30 @@ public class AssignmentService {
         );
     }
 
+    @Transactional
+    public void deleteAssignment(UUID classId, UUID assignmentId, UUID lecturerId) {
+        CourseClass cc = courseClassRepository.findById(classId)
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+
+        if (cc.getLecturer() != null && lecturerId != null && !cc.getLecturer().getId().equals(lecturerId)) {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
+
+        Assignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new AppException(ErrorCode.ASSIGNMENT_NOT_FOUND));
+
+        if (assignment.getCourseClass() != null && !assignment.getCourseClass().getId().equals(classId)) {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
+
+        List<Submission> subs = submissionRepository.findByAssignmentId(assignmentId);
+        if (subs != null && !subs.isEmpty()) {
+            submissionRepository.deleteAll(subs);
+        }
+
+        assignmentRepository.delete(assignment);
+    }
+
     @Transactional(readOnly = true)
     public AssignmentSubmissionListResponse getAssignmentSubmissions(UUID assignmentId) {
         Assignment assignment = assignmentRepository.findById(assignmentId)

@@ -310,6 +310,25 @@ public class ClassService {
         );
     }
 
+    @Transactional
+    public void deleteMaterial(UUID classId, UUID materialId, UUID lecturerId) {
+        CourseClass cc = courseClassRepository.findById(classId)
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+
+        if (cc.getLecturer() != null && lecturerId != null && !cc.getLecturer().getId().equals(lecturerId)) {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
+
+        Material material = materialRepository.findById(materialId)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_INPUT, "Không tìm thấy tài liệu"));
+
+        if (material.getCourseClass() != null && !material.getCourseClass().getId().equals(classId)) {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
+
+        materialRepository.delete(material);
+    }
+
     @Transactional(readOnly = true)
     public ClassStatisticsResponse getClassStatistics(UUID classId) {
         CourseClass cc = courseClassRepository.findById(classId)
@@ -491,6 +510,7 @@ public class ClassService {
         // 3. Attendance Sessions & Records
         List<AttendanceSession> sessions = attendanceSessionRepository.findByCourseClassIdOrderByCreatedAtDesc(classId);
         List<ClassDetailResponse.AttendanceSessionRecordItem> attendanceRecords = new ArrayList<>();
+        List<ClassDetailResponse.AnnouncementItem> openSessionAnnouncements = new ArrayList<>();
         int presentCount = 0;
         int absentCount = 0;
 
@@ -512,6 +532,17 @@ public class ClassService {
                 absentCount++;
             }
 
+            if (s.getStatus() == SessionStatus.OPEN) {
+                openSessionAnnouncements.add(new ClassDetailResponse.AnnouncementItem(
+                        "att-" + s.getId(),
+                        "Điểm danh đang mở: " + cc.getName(),
+                        "Phiên điểm danh lớp " + cc.getCode() + " đang mở. Nhấn 'Tải mã QR' để lưu ảnh QR về máy.",
+                        s.getCreatedAt() != null ? s.getCreatedAt().toString() : "",
+                        true,
+                        !isPresent
+                ));
+            }
+
             attendanceRecords.add(new ClassDetailResponse.AttendanceSessionRecordItem(
                     s.getId(),
                     sessionNumber,
@@ -520,6 +551,8 @@ public class ClassService {
                     scannedAt
             ));
         }
+
+        announcements.addAll(0, openSessionAnnouncements);
 
         int totalSessions = sessions.size();
         int attendanceRate;
@@ -633,8 +666,29 @@ public class ClassService {
         }
 
         List<NotificationItemResponse> notifications = new ArrayList<>();
+        List<NotificationItemResponse> openSessionNotifications = new ArrayList<>();
 
         for (CourseClass cc : userClasses) {
+            List<AttendanceSession> sessions = attendanceSessionRepository.findByCourseClassIdOrderByCreatedAtDesc(cc.getId());
+            if (sessions != null) {
+                for (AttendanceSession s : sessions) {
+                    if (s.getStatus() == SessionStatus.OPEN) {
+                        boolean isPresent = attendanceRecordRepository.findBySessionIdAndStudentId(s.getId(), userId)
+                                .map(r -> r.getStatus() == AttendanceStatus.PRESENT)
+                                .orElse(false);
+                        openSessionNotifications.add(new NotificationItemResponse(
+                                "att-" + s.getId(),
+                                "Điểm danh đang mở: " + cc.getName(),
+                                "Phiên điểm danh lớp " + cc.getCode() + " đang mở. Nhấn 'Tải mã QR' để lưu ảnh QR về máy.",
+                                cc.getCode(),
+                                s.getCreatedAt() != null ? s.getCreatedAt().toString() : "",
+                                "URGENT",
+                                !isPresent
+                        ));
+                    }
+                }
+            }
+
             List<Assignment> assignments = assignmentRepository.findByCourseClassIdOrderByDeadlineAsc(cc.getId());
             for (Assignment a : assignments) {
                 Optional<Submission> subOpt = role == Role.ROLE_STUDENT
@@ -702,6 +756,7 @@ public class ClassService {
             }
         }
 
+        notifications.addAll(0, openSessionNotifications);
         return notifications;
     }
 

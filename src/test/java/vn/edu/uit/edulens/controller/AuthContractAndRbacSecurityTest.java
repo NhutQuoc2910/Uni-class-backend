@@ -349,6 +349,60 @@ public class AuthContractAndRbacSecurityTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true));
         }
+
+        @Test
+        @DisplayName("DELETE /api/v1/classes/{classId}/materials/{materialId} - Student 403 Forbidden, Lecturer 200 OK")
+        void testDeleteMaterialRbac() throws Exception {
+            UUID materialId = UUID.randomUUID();
+
+            // Student -> 403
+            mockMvc.perform(delete("/api/v1/classes/{classId}/materials/{materialId}", classId, materialId)
+                            .with(user(studentDetails)))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.code").value(40300));
+
+            // Lecturer -> 200
+            mockMvc.perform(delete("/api/v1/classes/{classId}/materials/{materialId}", classId, materialId)
+                            .with(user(lecturerDetails)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true));
+        }
+
+        @Test
+        @DisplayName("DELETE /api/v1/classes/{classId}/assignments/{assignmentId} - Student 403 Forbidden, Lecturer 200 OK")
+        void testDeleteAssignmentRbac() throws Exception {
+            UUID assignmentId = UUID.randomUUID();
+
+            // Student -> 403
+            mockMvc.perform(delete("/api/v1/classes/{classId}/assignments/{assignmentId}", classId, assignmentId)
+                            .with(user(studentDetails)))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.code").value(40300));
+
+            // Lecturer -> 200
+            mockMvc.perform(delete("/api/v1/classes/{classId}/assignments/{assignmentId}", classId, assignmentId)
+                            .with(user(lecturerDetails)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true));
+        }
+
+        @Test
+        @DisplayName("DELETE /api/v1/classes/{classId}/schedules/{scheduleId} - Student 403 Forbidden, Lecturer 200 OK")
+        void testDeleteScheduleRbac() throws Exception {
+            UUID scheduleId = UUID.randomUUID();
+
+            // Student -> 403
+            mockMvc.perform(delete("/api/v1/classes/{classId}/schedules/{scheduleId}", classId, scheduleId)
+                            .with(user(studentDetails)))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.code").value(40300));
+
+            // Lecturer -> 200
+            mockMvc.perform(delete("/api/v1/classes/{classId}/schedules/{scheduleId}", classId, scheduleId)
+                            .with(user(lecturerDetails)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true));
+        }
     }
 
     @Nested

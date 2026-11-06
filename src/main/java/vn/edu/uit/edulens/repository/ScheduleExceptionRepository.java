@@ -36,4 +36,10 @@ public interface ScheduleExceptionRepository
     List<ScheduleException> findByCourseClassIdOrderByOriginalDateDesc(UUID classId);
 
     List<ScheduleException> findByCourseClassIdInAndStatusOrderByOriginalDateDesc(List<UUID> classIds, ScheduleExceptionStatus status);
+
+    List<ScheduleException> findByClassScheduleId(UUID scheduleId);
+
+    List<ScheduleException> findByRelatedExceptionId(UUID relatedExceptionId);
+
+    void deleteByClassScheduleId(UUID scheduleId);
 }

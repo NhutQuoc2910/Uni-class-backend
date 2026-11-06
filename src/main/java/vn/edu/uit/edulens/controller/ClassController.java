@@ -125,6 +125,19 @@ public class ClassController {
     }
 
     @PreAuthorize("hasAuthority('ROLE_LECTURER')")
+    @Operation(summary = "Giảng viên xóa tài liệu hoặc thông báo của lớp học")
+    @DeleteMapping("/{classId}/materials/{materialId}")
+    public ResponseEntity<ApiResponse<Void>> deleteMaterial(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID classId,
+            @PathVariable UUID materialId
+    ) {
+        UUID lecturerId = userDetails != null ? userDetails.getId() : null;
+        classService.deleteMaterial(classId, materialId, lecturerId);
+        return ResponseEntity.ok(ApiResponse.success("Xóa tài liệu thành công", null));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_LECTURER')")
     @Operation(summary = "Giảng viên tạo bài tập mới cho lớp học")
     @PostMapping("/{classId}/assignments")
     public ResponseEntity<ApiResponse<ClassDetailResponse.ClassAssignmentItem>> createAssignment(
@@ -133,6 +146,19 @@ public class ClassController {
     ) {
         ClassDetailResponse.ClassAssignmentItem created = assignmentService.createAssignment(classId, request);
         return ResponseEntity.ok(ApiResponse.success("Tạo bài tập mới thành công", created));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_LECTURER')")
+    @Operation(summary = "Giảng viên xóa bài tập của lớp học")
+    @DeleteMapping("/{classId}/assignments/{assignmentId}")
+    public ResponseEntity<ApiResponse<Void>> deleteAssignment(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID classId,
+            @PathVariable UUID assignmentId
+    ) {
+        UUID lecturerId = userDetails != null ? userDetails.getId() : null;
+        assignmentService.deleteAssignment(classId, assignmentId, lecturerId);
+        return ResponseEntity.ok(ApiResponse.success("Xóa bài tập thành công", null));
     }
 
     @PreAuthorize("hasAuthority('ROLE_LECTURER')")
@@ -241,6 +267,19 @@ public ResponseEntity<ApiResponse<ClassScheduleResponse>> updateSchedule(
             ApiResponse.success("Cập nhật lịch học thành công", result)
     );
 }
+
+    @PreAuthorize("hasAuthority('ROLE_LECTURER')")
+    @Operation(summary = "Giảng viên xóa lịch học định kỳ của lớp")
+    @DeleteMapping("/{classId}/schedules/{scheduleId}")
+    public ResponseEntity<ApiResponse<Void>> deleteSchedule(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID classId,
+            @PathVariable UUID scheduleId
+    ) {
+        UUID lecturerId = userDetails != null ? userDetails.getId() : null;
+        scheduleService.deleteSchedule(classId, scheduleId, lecturerId);
+        return ResponseEntity.ok(ApiResponse.success("Xóa lịch học thành công", null));
+    }
 
 // ==================== SCHEDULE EXCEPTIONS ====================
 
