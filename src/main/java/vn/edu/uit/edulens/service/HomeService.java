@@ -114,15 +114,22 @@ public class HomeService {
                         enrolled
                 ));
 
-                List<Assignment> activeAssignments = assignmentRepository.findByCourseClassIdAndDeadlineAfterOrderByDeadlineAsc(cc.getId(), now);
-                for (Assignment a : activeAssignments) {
-                    allActiveAssignments.add(new AssignmentItem(
-                            a.getId(),
-                            a.getTitle(),
-                            cc.getName(),
-                            a.getDeadline() != null ? a.getDeadline().toString() : "",
-                            false
-                    ));
+                List<Assignment> classAssignments = assignmentRepository.findByCourseClassIdOrderByDeadlineAsc(cc.getId());
+                if (classAssignments == null || classAssignments.isEmpty()) {
+                    classAssignments = assignmentRepository.findByCourseClassIdAndDeadlineAfterOrderByDeadlineAsc(cc.getId(), now);
+                }
+                for (Assignment a : classAssignments) {
+                    boolean needsGrading = submissionRepository.existsByAssignmentIdAndScoreIsNull(a.getId())
+                            || !submissionRepository.existsByAssignmentId(a.getId());
+                    if (needsGrading) {
+                        allActiveAssignments.add(new AssignmentItem(
+                                a.getId(),
+                                a.getTitle(),
+                                cc.getName(),
+                                a.getDeadline() != null ? a.getDeadline().toString() : "",
+                                false
+                        ));
+                    }
                 }
             }
         }

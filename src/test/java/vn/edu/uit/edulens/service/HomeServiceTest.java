@@ -146,4 +146,45 @@ class HomeServiceTest {
         assertEquals(0, response.getCourses().get(0).getProgress());
         assertEquals(0, response.getPendingAssignmentsCount());
     }
+
+    @Test
+    @DisplayName("Giảng viên: Bài tập cần chấm được sắp xếp từ deadline xa nhất trong quá khứ tới gần nhất hiện tại (tối đa 5 bài)")
+    void getSummary_Lecturer_SortsGradingAssignmentsFromOldestPastToNewest() {
+        Instant now = Instant.now();
+        Assignment a1 = Assignment.builder()
+                .id(UUID.randomUUID())
+                .courseClass(sampleClass)
+                .title("Bài tập tuần 1 (Xa nhất)")
+                .deadline(now.minus(10, ChronoUnit.DAYS))
+                .build();
+        Assignment a2 = Assignment.builder()
+                .id(UUID.randomUUID())
+                .courseClass(sampleClass)
+                .title("Bài tập tuần 2 (Ở giữa)")
+                .deadline(now.minus(5, ChronoUnit.DAYS))
+                .build();
+        Assignment a3 = Assignment.builder()
+                .id(UUID.randomUUID())
+                .courseClass(sampleClass)
+                .title("Bài tập tuần 3 (Gần nhất)")
+                .deadline(now.minus(1, ChronoUnit.DAYS))
+                .build();
+
+        when(courseClassRepository.findByLecturerId(lecturerId)).thenReturn(List.of(sampleClass));
+        when(classMemberRepository.countByCourseClassId(sampleClass.getId())).thenReturn(10L);
+        when(attendanceSessionRepository.countByCourseClassIdAndStatus(sampleClass.getId(), SessionStatus.CLOSED)).thenReturn(2L);
+        when(attendanceRecordRepository.countPresentInClosedSessions(sampleClass.getId())).thenReturn(18L);
+        when(assignmentRepository.findByCourseClassIdOrderByDeadlineAsc(sampleClass.getId()))
+                .thenReturn(List.of(a3, a1, a2));
+        when(submissionRepository.existsByAssignmentIdAndScoreIsNull(any())).thenReturn(true);
+
+        HomeSummaryResponse response = homeService.getSummary(lecturerId, Role.ROLE_LECTURER);
+
+        assertNotNull(response);
+        assertEquals(3, response.getPendingAssignmentsCount());
+        assertEquals(3, response.getDueSoonAssignments().size());
+        assertEquals("Bài tập tuần 1 (Xa nhất)", response.getDueSoonAssignments().get(0).getTitle());
+        assertEquals("Bài tập tuần 2 (Ở giữa)", response.getDueSoonAssignments().get(1).getTitle());
+        assertEquals("Bài tập tuần 3 (Gần nhất)", response.getDueSoonAssignments().get(2).getTitle());
+    }
 }

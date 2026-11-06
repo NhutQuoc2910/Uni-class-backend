@@ -13,4 +13,6 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
     List<Submission> findByAssignmentId(UUID assignmentId);
     Optional<Submission> findByAssignmentIdAndStudentId(UUID assignmentId, UUID studentId);
     boolean existsByAssignmentIdAndStudentId(UUID assignmentId, UUID studentId);
+    boolean existsByAssignmentIdAndScoreIsNull(UUID assignmentId);
+    boolean existsByAssignmentId(UUID assignmentId);
 }
