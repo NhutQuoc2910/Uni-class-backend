@@ -42,17 +42,17 @@ public class EmailService {
 
         switch (purpose) {
             case REGISTER -> {
-                subject = "[EduLens] Mã xác thực đăng ký tài khoản";
+                subject = "[UniClass] Mã xác thực đăng ký tài khoản";
                 description = """
-                        Bạn đã yêu cầu đăng ký tài khoản Uni-Class EduLens.
+                        Bạn đã yêu cầu đăng ký tài khoản UniClass.
                         Hãy sử dụng mã OTP bên dưới để xác minh địa chỉ email.
                         """;
             }
 
             case FORGOT_PASSWORD -> {
-                subject = "[EduLens] Mã xác thực đặt lại mật khẩu";
+                subject = "[UniClass] Mã xác thực đặt lại mật khẩu";
                 description = """
-                        Bạn đã yêu cầu đặt lại mật khẩu tài khoản Uni-Class EduLens.
+                        Bạn đã yêu cầu đặt lại mật khẩu tài khoản UniClass.
                         Hãy sử dụng mã OTP bên dưới để tiếp tục.
                         """;
             }
@@ -69,7 +69,7 @@ public class EmailService {
                             border-radius: 8px;">
 
                     <h2 style="color: #1976D2; text-align: center;">
-                        Uni-Class EduLens
+                        UniClass
                     </h2>
 
                     <p>Xin chào,</p>
@@ -101,7 +101,7 @@ public class EmailService {
 
                     <p style="font-size: 12px; color: #999;
                               text-align: center;">
-                        Đây là email tự động từ Uni-Class EduLens.
+                        Đây là email tự động từ UniClass.
                         Vui lòng không phản hồi.
                     </p>
                 </div>
@@ -113,7 +113,7 @@ public class EmailService {
             MimeMessageHelper helper =
                     new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom(fromEmail, "Uni-Class EduLens");
+            helper.setFrom(fromEmail, "UniClass");
             helper.setTo(toEmail);
             helper.setSubject(subject);
             helper.setText(htmlContent, true);

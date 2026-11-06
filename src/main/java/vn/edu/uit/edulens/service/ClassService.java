@@ -283,21 +283,30 @@ public class ClassService {
         boolean isUrgentAnn = Boolean.TRUE.equals(request.getUrgentAnnouncement())
                 || "URGENT_ANNOUNCEMENT".equalsIgnoreCase(request.getFileType())
                 || "URGENT_ANNOUNCEMENT".equalsIgnoreCase(fileType);
+        boolean isAnnouncement = "ANNOUNCEMENT".equalsIgnoreCase(fileType)
+                || isUrgentAnn;
 
-        if (isUrgentAnn && firebaseService != null) {
+        if (isAnnouncement && firebaseService != null) {
             try {
+                String notifTitle = isUrgentAnn
+                        ? "Thông báo khẩn: " + effective.getTitle()
+                        : "Thông báo mới: " + cc.getName();
+                String notifBody = effective.getTitle();
                 firebaseService.notifyClassStudents(
                         classId,
-                        "Thông báo khẩn: " + effective.getTitle(),
-                        effective.getTitle(),
+                        notifTitle,
+                        notifBody,
                         Map.of(
-                                "type", "URGENT_ANNOUNCEMENT",
+                                "type", isUrgentAnn ? "URGENT_ANNOUNCEMENT" : "ANNOUNCEMENT",
                                 "classId", classId.toString(),
-                                "materialId", effective.getId().toString()
+                                "materialId", effective.getId().toString(),
+                                "className", cc.getName(),
+                                "title", notifTitle,
+                                "body", notifBody
                         )
                 );
             } catch (Exception e) {
-                log.warn("Failed to notify students of urgent announcement: {}", e.getMessage());
+                log.warn("Failed to notify students of announcement: {}", e.getMessage());
             }
         }
 

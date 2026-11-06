@@ -18,10 +18,10 @@ public class OpenApiConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Uni-Class (EduLens) Backend API")
+                        .title("UniClass Backend API")
                         .version("1.0.0")
-                        .description("Tài liệu REST API cho đồ án Phát triển ứng dụng di động - Hệ thống Quản lý lớp học Uni-Class (EduLens)")
-                        .contact(new Contact().name("Đội ngũ phát triển Uni-Class").email("admin@uit.edu.vn")))
+                        .description("Tài liệu REST API cho đồ án Phát triển ứng dụng di động - Hệ thống Quản lý lớp học UniClass")
+                        .contact(new Contact().name("Đội ngũ phát triển UniClass").email("admin@uit.edu.vn")))
                 .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME))
                 .components(new Components()
                         .addSecuritySchemes(SECURITY_SCHEME_NAME,
