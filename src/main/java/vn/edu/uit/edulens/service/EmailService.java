@@ -42,7 +42,7 @@ public class EmailService {
 
         switch (purpose) {
             case REGISTER -> {
-                subject = "[UniClass] Mã xác thực đăng ký tài khoản";
+                subject = String.format("%s là mã xác thực UniClass của bạn", otpCode);
                 description = """
                         Bạn đã yêu cầu đăng ký tài khoản UniClass.
                         Hãy sử dụng mã OTP bên dưới để xác minh địa chỉ email.
@@ -50,7 +50,7 @@ public class EmailService {
             }
 
             case FORGOT_PASSWORD -> {
-                subject = "[UniClass] Mã xác thực đặt lại mật khẩu";
+                subject = String.format("%s là mã xác thực đặt lại mật khẩu UniClass của bạn", otpCode);
                 description = """
                         Bạn đã yêu cầu đặt lại mật khẩu tài khoản UniClass.
                         Hãy sử dụng mã OTP bên dưới để tiếp tục.
@@ -62,7 +62,12 @@ public class EmailService {
             );
         }
 
+        String preheaderText = String.format("%s là mã xác thực của bạn. Không chia sẻ mã này cho bất kỳ ai.", otpCode);
+
         String htmlContent = """
+                <div style="display: none; max-height: 0px; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; max-width: 0px; opacity: 0;">
+                    %s&#847; &zwnj;&nbsp;&#8199;&shy;&#847; &zwnj;&nbsp;&#8199;&shy;&#847; &zwnj;&nbsp;&#8199;&shy;&#847; &zwnj;&nbsp;&#8199;&shy;&#847; &zwnj;&nbsp;&#8199;&shy;
+                </div>
                 <div style="font-family: Arial, sans-serif;
                             max-width: 600px; margin: 0 auto;
                             padding: 20px; border: 1px solid #e0e0e0;
@@ -105,7 +110,7 @@ public class EmailService {
                         Vui lòng không phản hồi.
                     </p>
                 </div>
-                """.formatted(description, otpCode);
+                """.formatted(preheaderText, description, otpCode);
 
         try {
             MimeMessage message = mailSender.createMimeMessage();

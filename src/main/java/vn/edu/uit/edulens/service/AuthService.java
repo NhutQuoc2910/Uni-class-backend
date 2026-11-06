@@ -423,27 +423,11 @@ public class AuthService {
             throw new AppException(ErrorCode.INVALID_OTP_PURPOSE);
         }
 
-        // Kiểm tra thời gian gửi lại OTP: tối thiểu 60 giây
+        // Lấy hoặc tạo dữ liệu đăng ký tạm
         PendingRegistration pending = pendingRegistrationRepository
                 .findByEmail(email)
                 .orElse(null);
 
-        if (pending != null && pending.getLastSentAt() != null) {
-            Instant resendAllowedAt = pending.getLastSentAt()
-                    .plusSeconds(60);
-
-            if (Instant.now().isBefore(resendAllowedAt)) {
-                throw new AppException(ErrorCode.OTP_RESEND_TOO_SOON);
-            }
-        }
-
-        // Tạo OTP 6 chữ số
-        String otpCode = String.format(
-                "%06d",
-                secureRandom.nextInt(1_000_000)
-        );
-
-        // Tạo dữ liệu đăng ký tạm
         if (pending == null) {
             pending = PendingRegistration.builder()
                     .email(email)
@@ -456,6 +440,23 @@ public class AuthService {
                 passwordEncoder.encode(request.getPassword())
         );
         pending.setRole(role);
+
+        // Nếu đã gửi OTP trong vòng 60s và mã vẫn còn hiệu lực, cập nhật thông tin và tái sử dụng OTP để tránh spam email
+        if (pending.getLastSentAt() != null
+                && Instant.now().isBefore(pending.getLastSentAt().plusSeconds(60))
+                && pending.getOtpHash() != null
+                && pending.getOtpExpiresAt() != null
+                && Instant.now().isBefore(pending.getOtpExpiresAt())) {
+            pendingRegistrationRepository.save(pending);
+            return "Mã OTP đã được gửi trước đó vào email của bạn. Vui lòng kiểm tra hộp thư.";
+        }
+
+        // Tạo OTP 6 chữ số mới
+        String otpCode = String.format(
+                "%06d",
+                secureRandom.nextInt(1_000_000)
+        );
+
         pending.setOtpHash(
                 hashOtp(email, OtpPurpose.REGISTER, otpCode)
         );
