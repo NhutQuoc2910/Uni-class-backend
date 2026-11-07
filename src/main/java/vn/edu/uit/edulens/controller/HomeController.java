@@ -59,6 +59,19 @@ public class HomeController {
         List<AssignmentItem> items = homeService.getAllGradingAssignments(userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(items));
     }
+
+    @Operation(summary = "Lấy toàn bộ danh sách bài tập sắp đến hạn của sinh viên")
+    @GetMapping("/upcoming-assignments")
+    public ResponseEntity<ApiResponse<List<AssignmentItem>>> getUpcomingAssignments(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        if (userDetails == null) {
+            return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
+        }
+
+        List<AssignmentItem> items = homeService.getAllUpcomingAssignments(userDetails.getId());
+        return ResponseEntity.ok(ApiResponse.success(items));
+    }
    
     @Operation(summary = "Lấy lịch học hôm nay của người dùng (sinh viên hoặc giảng viên)")
     @GetMapping("/today-schedule")

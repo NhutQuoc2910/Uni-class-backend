@@ -1,6 +1,8 @@
 package vn.edu.uit.edulens.service;
 
 import com.google.firebase.FirebaseApp;
+import com.google.firebase.messaging.AndroidConfig;
+import com.google.firebase.messaging.AndroidNotification;
 import com.google.firebase.messaging.BatchResponse;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.MulticastMessage;
@@ -53,6 +55,24 @@ public class FirebaseService {
                     .setBody(body)
                     .build();
 
+            String type = (data != null) ? data.get("type") : null;
+            String channelId = "channel_classes";
+            if (type != null && type.toUpperCase().contains("URGENT")) {
+                channelId = "channel_urgent";
+            } else if (type != null && type.toUpperCase().contains("ATTENDANCE")) {
+                channelId = "channel_attendance";
+            }
+
+            AndroidConfig androidConfig = AndroidConfig.builder()
+                    .setPriority(AndroidConfig.Priority.HIGH)
+                    .setNotification(AndroidNotification.builder()
+                            .setChannelId(channelId)
+                            .setPriority(AndroidNotification.Priority.HIGH)
+                            .setSound("default")
+                            .setDefaultVibrateTimings(true)
+                            .build())
+                    .build();
+
             int totalSuccess = 0;
             int totalFailure = 0;
 
@@ -61,6 +81,7 @@ public class FirebaseService {
 
                 MulticastMessage.Builder messageBuilder = MulticastMessage.builder()
                         .setNotification(notification)
+                        .setAndroidConfig(androidConfig)
                         .addAllTokens(batch);
 
                 if (data != null && !data.isEmpty()) {

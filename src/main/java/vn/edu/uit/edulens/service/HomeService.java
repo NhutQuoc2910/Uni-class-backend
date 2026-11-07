@@ -194,4 +194,42 @@ public class HomeService {
         allActiveAssignments.sort(Comparator.comparing(AssignmentItem::getDueDate, Comparator.nullsLast(String::compareTo)));
         return allActiveAssignments;
     }
+
+    @Transactional(readOnly = true)
+    public List<AssignmentItem> getAllUpcomingAssignments(UUID studentId) {
+        List<AssignmentItem> allUpcomingAssignments = new ArrayList<>();
+        if (studentId == null) {
+            return allUpcomingAssignments;
+        }
+
+        Instant now = Instant.now();
+        List<ClassMember> memberships = classMemberRepository.findByStudentId(studentId);
+        if (memberships == null) {
+            return allUpcomingAssignments;
+        }
+
+        for (ClassMember member : memberships) {
+            CourseClass cc = member.getCourseClass();
+            if (cc == null) {
+                continue;
+            }
+            List<Assignment> activeAssignments = assignmentRepository.findByCourseClassIdAndDeadlineAfterOrderByDeadlineAsc(cc.getId(), now);
+            if (activeAssignments == null) {
+                continue;
+            }
+            for (Assignment a : activeAssignments) {
+                boolean submitted = submissionRepository.existsByAssignmentIdAndStudentId(a.getId(), studentId);
+                allUpcomingAssignments.add(new AssignmentItem(
+                        a.getId(),
+                        a.getTitle(),
+                        cc.getName(),
+                        a.getDeadline() != null ? a.getDeadline().toString() : "",
+                        submitted
+                ));
+            }
+        }
+
+        allUpcomingAssignments.sort(Comparator.comparing(AssignmentItem::getDueDate, Comparator.nullsLast(String::compareTo)));
+        return allUpcomingAssignments;
+    }
 }

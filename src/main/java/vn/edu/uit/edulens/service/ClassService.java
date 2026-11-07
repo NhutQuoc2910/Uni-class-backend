@@ -292,6 +292,7 @@ public class ClassService {
                         ? "Thông báo khẩn: " + effective.getTitle()
                         : "Thông báo mới: " + cc.getName();
                 String notifBody = effective.getTitle();
+                String content = effective.getFileUrl() != null ? effective.getFileUrl() : "";
                 firebaseService.notifyClassStudents(
                         classId,
                         notifTitle,
@@ -302,7 +303,8 @@ public class ClassService {
                                 "materialId", effective.getId().toString(),
                                 "className", cc.getName(),
                                 "title", notifTitle,
-                                "body", notifBody
+                                "body", notifBody,
+                                "content", content
                         )
                 );
             } catch (Exception e) {
@@ -753,15 +755,36 @@ public class ClassService {
 
             List<Material> materials = materialRepository.findByCourseClassIdOrderByCreatedAtDesc(cc.getId());
             for (Material m : materials) {
-                notifications.add(new NotificationItemResponse(
-                        "mat-" + m.getId(),
-                        "Tài liệu mới: " + m.getTitle(),
-                        "Lớp " + cc.getCode() + " - " + cc.getName(),
-                        cc.getCode(),
-                        m.getCreatedAt() != null ? m.getCreatedAt().toString() : "",
-                        "GENERAL",
-                        false
-                ));
+                String ft = m.getFileType() != null ? m.getFileType().trim() : "";
+                boolean isUrgentAnn = "URGENT_ANNOUNCEMENT".equalsIgnoreCase(ft);
+                boolean isAnn = isUrgentAnn || "ANNOUNCEMENT".equalsIgnoreCase(ft);
+                if (isAnn) {
+                    String annTitle = (isUrgentAnn ? "Thông báo khẩn: " : "Thông báo mới: ") + m.getTitle();
+                    String annBody = (m.getFileUrl() != null && !m.getFileUrl().isBlank())
+                            ? m.getFileUrl()
+                            : ("Lớp " + cc.getCode() + " - " + cc.getName());
+                    boolean isRecent = m.getCreatedAt() != null
+                            && m.getCreatedAt().isAfter(now.minus(72, ChronoUnit.HOURS));
+                    notifications.add(new NotificationItemResponse(
+                            "mat-" + m.getId(),
+                            annTitle,
+                            annBody,
+                            cc.getCode(),
+                            m.getCreatedAt() != null ? m.getCreatedAt().toString() : "",
+                            isUrgentAnn ? "URGENT" : "GENERAL",
+                            isRecent
+                    ));
+                } else {
+                    notifications.add(new NotificationItemResponse(
+                            "mat-" + m.getId(),
+                            "Tài liệu mới: " + m.getTitle(),
+                            "Lớp " + cc.getCode() + " - " + cc.getName(),
+                            cc.getCode(),
+                            m.getCreatedAt() != null ? m.getCreatedAt().toString() : "",
+                            "GENERAL",
+                            false
+                    ));
+                }
             }
         }
 
