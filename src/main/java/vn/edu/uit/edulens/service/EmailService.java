@@ -39,30 +39,31 @@ public class EmailService {
 
         String subject;
         String description;
+        String preheaderText;
 
         switch (purpose) {
             case REGISTER -> {
-                subject = String.format("%s là mã xác thực UniClass của bạn", otpCode);
+                subject = String.format("%s là mã xác minh của bạn", otpCode);
                 description = """
                         Bạn đã yêu cầu đăng ký tài khoản UniClass.
                         Hãy sử dụng mã OTP bên dưới để xác minh địa chỉ email.
                         """;
+                preheaderText = String.format("%s là mã xác minh của bạn. Mã có hiệu lực trong 5 phút. Để bảo mật tài khoản, tuyệt đối không chia sẻ mã này.", otpCode);
             }
 
             case FORGOT_PASSWORD -> {
-                subject = String.format("%s là mã xác thực đặt lại mật khẩu UniClass của bạn", otpCode);
+                subject = String.format("%s là mã xác minh của bạn", otpCode);
                 description = """
                         Bạn đã yêu cầu đặt lại mật khẩu tài khoản UniClass.
                         Hãy sử dụng mã OTP bên dưới để tiếp tục.
                         """;
+                preheaderText = String.format("%s là mã xác minh của bạn. Mã có hiệu lực trong 5 phút. Để bảo mật tài khoản, tuyệt đối không chia sẻ mã này.", otpCode);
             }
 
             default -> throw new IllegalArgumentException(
                     "Mục đích OTP không hợp lệ"
             );
         }
-
-        String preheaderText = String.format("%s là mã xác thực của bạn. Không chia sẻ mã này cho bất kỳ ai.", otpCode);
 
         String htmlContent = """
                 <div style="display: none; max-height: 0px; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; max-width: 0px; opacity: 0;">
