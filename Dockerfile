@@ -22,12 +22,15 @@ WORKDIR /app
 RUN apk add --no-cache tzdata
 ENV TZ=Asia/Ho_Chi_Minh
 
-# Tạo user non-root để chạy ứng dụng an toàn
-RUN addgroup -S edulens && adduser -S edulens -G edulens
-USER edulens:edulens
+# Tạo user non-root để chạy ứng dụng an toàn và cấp quyền thư mục lưu trữ uploads
+RUN addgroup -S edulens && adduser -S edulens -G edulens \
+    && mkdir -p /app/uploads \
+    && chown -R edulens:edulens /app
 
 # Copy file edulens-backend-1.0.0-SNAPSHOT.jar từ Stage 1
-COPY --from=build /app/target/*.jar app.jar
+COPY --chown=edulens:edulens --from=build /app/target/*.jar app.jar
+
+USER edulens:edulens
 
 EXPOSE 8080
 

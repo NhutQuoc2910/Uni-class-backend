@@ -20,7 +20,12 @@ services:
       - MAIL_USERNAME=${MAIL_USERNAME}
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - PORT=${PORT:-8080}
+    volumes:
+      - edulens-uploads:/app/uploads
     deploy:
       resources:
         limits:
           memory: 768M
+
+volumes:
+  edulens-uploads:

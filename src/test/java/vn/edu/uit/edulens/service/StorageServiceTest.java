@@ -62,6 +62,40 @@ class StorageServiceTest {
     }
 
     @Test
+    @DisplayName("uploadFile: Hỗ trợ các định dạng Office (.ppt, .xls), nén (.rar) và ảnh (.bin fallback từ Android)")
+    void uploadFile_OfficeArchiveAndAndroidFallback_Success() {
+        UUID uploaderId = UUID.randomUUID();
+
+        MockMultipartFile pptFile = new MockMultipartFile(
+                "file",
+                "slides.ppt",
+                "application/vnd.ms-powerpoint",
+                "PPT content".getBytes()
+        );
+        FileUploadResponse pptResp = storageService.uploadFile(pptFile, "materials", uploaderId);
+        assertTrue(pptResp.getFileName().endsWith(".ppt"));
+
+        MockMultipartFile rarFile = new MockMultipartFile(
+                "file",
+                "homework.rar",
+                "application/x-rar-compressed",
+                "RAR content".getBytes()
+        );
+        FileUploadResponse rarResp = storageService.uploadFile(rarFile, "assignments", uploaderId);
+        assertTrue(rarResp.getFileName().endsWith(".rar"));
+
+        MockMultipartFile androidPhotoPickerFile = new MockMultipartFile(
+                "file",
+                "tep_tin_chon.bin",
+                "image/jpeg",
+                "JPEG bytes".getBytes()
+        );
+        FileUploadResponse avatarResp = storageService.uploadFile(androidPhotoPickerFile, "avatars", uploaderId);
+        assertTrue(avatarResp.getFileName().endsWith(".jpg"));
+        assertEquals("image/jpeg", avatarResp.getFileType());
+    }
+
+    @Test
     @DisplayName("uploadFile: Upload thành công lên Supabase Storage khi có cấu hình")
     void uploadFile_Supabase_Success() throws Exception {
         storageService.setSupabaseUrl("https://example.supabase.co");

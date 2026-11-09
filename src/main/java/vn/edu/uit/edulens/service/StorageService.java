@@ -34,15 +34,29 @@ public class StorageService {
     private static final Set<String> ALLOWED_MIME_TYPES = Set.of(
             "application/pdf",
             "application/msword",
+            "application/vnd.ms-excel",
+            "application/vnd.ms-powerpoint",
             "application/zip",
             "application/x-zip-compressed",
+            "application/x-zip",
+            "application/vnd.rar",
+            "application/x-rar-compressed",
+            "application/x-rar",
+            "application/x-7z-compressed",
+            "text/plain",
             "image/jpeg",
+            "image/jpg",
             "image/png",
-            "image/webp"
+            "image/webp",
+            "image/gif",
+            "image/heic",
+            "image/heif"
     );
 
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
-            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip", "jpg", "jpeg", "png", "webp"
+            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+            "zip", "rar", "7z", "txt",
+            "jpg", "jpeg", "png", "webp", "gif", "heic", "heif"
     );
 
     @Value("${storage.supabase.url:}")
@@ -86,7 +100,7 @@ public class StorageService {
         String originalFilename = file.getOriginalFilename();
         String extension = getFileExtension(originalFilename);
         String mimeType = determineMimeType(file, extension);
-        String uniqueFileName = generateUniqueFileName(originalFilename);
+        String uniqueFileName = generateUniqueFileName(originalFilename, mimeType);
 
         log.info("Uploading file '{}' (size: {} bytes, mime: {}) by uploader: {}",
                 originalFilename, file.getSize(), mimeType, uploaderId);
@@ -136,20 +150,23 @@ public class StorageService {
         String originalFilename = file.getOriginalFilename();
         String extension = getFileExtension(originalFilename);
 
-        if (extension != null && !extension.isBlank() && !ALLOWED_EXTENSIONS.contains(extension.toLowerCase())) {
-            throw new AppException(ErrorCode.INVALID_FILE_TYPE);
-        }
-
         String contentType = file.getContentType();
         boolean isMimeAllowed = false;
         if (contentType != null && !contentType.isBlank() && !contentType.equalsIgnoreCase("application/octet-stream")) {
             String cleanMime = contentType.toLowerCase().trim();
+            int semicolonIdx = cleanMime.indexOf(';');
+            if (semicolonIdx != -1) {
+                cleanMime = cleanMime.substring(0, semicolonIdx).trim();
+            }
             if (ALLOWED_MIME_TYPES.contains(cleanMime)
                     || cleanMime.startsWith("application/vnd.openxmlformats-officedocument.")) {
                 isMimeAllowed = true;
-            } else {
-                throw new AppException(ErrorCode.INVALID_FILE_TYPE);
             }
+        }
+
+        boolean isFallbackBin = extension != null && extension.equalsIgnoreCase("bin");
+        if (extension != null && !extension.isBlank() && !isFallbackBin && !ALLOWED_EXTENSIONS.contains(extension.toLowerCase())) {
+            throw new AppException(ErrorCode.INVALID_FILE_TYPE);
         }
 
         boolean isExtensionAllowed = extension != null && ALLOWED_EXTENSIONS.contains(extension.toLowerCase());
@@ -239,7 +256,7 @@ public class StorageService {
         return null;
     }
 
-    private String generateUniqueFileName(String originalFilename) {
+    private String generateUniqueFileName(String originalFilename, String mimeType) {
         String baseName = "file";
         String extension = "";
         if (originalFilename != null && !originalFilename.isBlank()) {
@@ -253,6 +270,12 @@ public class StorageService {
                 baseName = name;
             }
         }
+        if (extension.isEmpty() || ".bin".equalsIgnoreCase(extension)) {
+            String inferredExt = inferExtensionFromMimeType(mimeType);
+            if (!inferredExt.isEmpty()) {
+                extension = "." + inferredExt;
+            }
+        }
         String sanitizedBase = baseName.replaceAll("[^a-zA-Z0-9_-]", "_");
         if (sanitizedBase.length() > 50) {
             sanitizedBase = sanitizedBase.substring(0, 50);
@@ -260,10 +283,67 @@ public class StorageService {
         return UUID.randomUUID() + "-" + sanitizedBase + extension;
     }
 
+    private String inferExtensionFromMimeType(String mimeType) {
+        if (mimeType == null || mimeType.isBlank()) {
+            return "";
+        }
+        switch (mimeType.trim().toLowerCase()) {
+            case "application/pdf":
+                return "pdf";
+            case "application/msword":
+                return "doc";
+            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                return "docx";
+            case "application/vnd.ms-excel":
+                return "xls";
+            case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                return "xlsx";
+            case "application/vnd.ms-powerpoint":
+                return "ppt";
+            case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+                return "pptx";
+            case "application/zip":
+            case "application/x-zip-compressed":
+            case "application/x-zip":
+                return "zip";
+            case "application/vnd.rar":
+            case "application/x-rar-compressed":
+            case "application/x-rar":
+                return "rar";
+            case "application/x-7z-compressed":
+                return "7z";
+            case "text/plain":
+                return "txt";
+            case "image/jpeg":
+            case "image/jpg":
+                return "jpg";
+            case "image/png":
+                return "png";
+            case "image/webp":
+                return "webp";
+            case "image/gif":
+                return "gif";
+            case "image/heic":
+                return "heic";
+            case "image/heif":
+                return "heif";
+            default:
+                return "";
+        }
+    }
+
     private String determineMimeType(MultipartFile file, String extension) {
         String contentType = file.getContentType();
         if (contentType != null && !contentType.isBlank() && !contentType.equalsIgnoreCase("application/octet-stream")) {
-            return contentType.trim().toLowerCase();
+            String clean = contentType.trim().toLowerCase();
+            int semi = clean.indexOf(';');
+            if (semi != -1) {
+                clean = clean.substring(0, semi).trim();
+            }
+            if ("image/jpg".equals(clean)) {
+                return "image/jpeg";
+            }
+            return clean;
         }
         if (extension != null) {
             switch (extension.toLowerCase()) {
@@ -283,6 +363,12 @@ public class StorageService {
                     return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
                 case "zip":
                     return "application/zip";
+                case "rar":
+                    return "application/vnd.rar";
+                case "7z":
+                    return "application/x-7z-compressed";
+                case "txt":
+                    return "text/plain";
                 case "jpg":
                 case "jpeg":
                     return "image/jpeg";
@@ -290,6 +376,12 @@ public class StorageService {
                     return "image/png";
                 case "webp":
                     return "image/webp";
+                case "gif":
+                    return "image/gif";
+                case "heic":
+                    return "image/heic";
+                case "heif":
+                    return "image/heif";
                 default:
                     break;
             }
