@@ -21,4 +21,6 @@ public interface ClassScheduleRepository
     List<ClassSchedule> findByCourseClassId(UUID classId);
 
     List<ClassSchedule> findByCourseClassIdIn(List<UUID> classIds);
+
+    void deleteAllByCourseClassId(UUID classId);
 }

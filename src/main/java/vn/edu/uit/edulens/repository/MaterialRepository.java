@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface MaterialRepository extends JpaRepository<Material, UUID> {
     List<Material> findByCourseClassIdOrderByCreatedAtDesc(UUID classId);
+    void deleteAllByCourseClassId(UUID classId);
 }

@@ -68,6 +68,18 @@ public class ClassController {
         return ResponseEntity.ok(ApiResponse.success("Đã lưu trữ lớp học thành công", archived));
     }
 
+    @DeleteMapping("/{classId}")
+    @PreAuthorize("hasRole('LECTURER')")
+    @Operation(summary = "Giảng viên xóa vĩnh viễn lớp học khi chưa có sinh viên tham gia")
+    public ResponseEntity<ApiResponse<Void>> deleteClass(
+            @PathVariable UUID classId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID lecturerId = userDetails != null ? userDetails.getId() : null;
+        classService.deleteClass(classId, lecturerId);
+        return ResponseEntity.ok(ApiResponse.success("Đã xóa vĩnh viễn lớp học thành công", null));
+    }
+
     @Operation(summary = "Tham gia lớp học bằng mã mời (inviteCode)")
     @PostMapping("/join")
     public ResponseEntity<ApiResponse<CourseClassItem>> joinClass(

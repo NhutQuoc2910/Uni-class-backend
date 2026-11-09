@@ -11,6 +11,7 @@ public class ClassDetailResponse {
     private String room;
     private String lecturerName;
     private String inviteCode;
+    private String status;
     private int enrolledCount;
     private int attendanceRate;
     private int presentCount;
@@ -94,6 +95,14 @@ public class ClassDetailResponse {
 
     public void setLecturerName(String lecturerName) {
         this.lecturerName = lecturerName;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public String getInviteCode() {

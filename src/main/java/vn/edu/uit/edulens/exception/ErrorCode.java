@@ -32,6 +32,7 @@ public enum ErrorCode {
     FILE_TOO_LARGE(40018, "Kích thước tệp vượt quá giới hạn", HttpStatus.BAD_REQUEST),
     UNAUTHORIZED(40100, "Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn", HttpStatus.UNAUTHORIZED),
     FORBIDDEN(40300, "Bạn không có quyền thực hiện thao tác này", HttpStatus.FORBIDDEN),
+    ACCESS_DENIED(40300, "Bạn không có quyền thực hiện thao tác này", HttpStatus.FORBIDDEN),
     INVALID_INPUT(40000, "Dữ liệu gửi lên không hợp lệ", HttpStatus.BAD_REQUEST),
     INTERNAL_SERVER_ERROR(50000, "Hệ thống gặp sự cố, vui lòng thử lại sau", HttpStatus.INTERNAL_SERVER_ERROR),
     OTP_MAX_ATTEMPTS_EXCEEDED(40019, "Bạn đã nhập sai OTP quá số lần cho phép. Vui lòng yêu cầu mã mới", HttpStatus.BAD_REQUEST),

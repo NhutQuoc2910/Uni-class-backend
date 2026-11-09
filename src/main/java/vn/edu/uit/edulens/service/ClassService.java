@@ -28,7 +28,6 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ClassService {
 
     private static final String INVITE_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -42,6 +41,45 @@ public class ClassService {
     private final SubmissionRepository submissionRepository;
     private final AttendanceSessionRepository attendanceSessionRepository;
     private final AttendanceRecordRepository attendanceRecordRepository;
+    private final ClassScheduleRepository classScheduleRepository;
+
+    public ClassService(
+            CourseClassRepository courseClassRepository,
+            ClassMemberRepository classMemberRepository,
+            UserRepository userRepository,
+            MaterialRepository materialRepository,
+            AssignmentRepository assignmentRepository,
+            SubmissionRepository submissionRepository,
+            AttendanceSessionRepository attendanceSessionRepository,
+            AttendanceRecordRepository attendanceRecordRepository
+    ) {
+        this(courseClassRepository, classMemberRepository, userRepository, materialRepository,
+                assignmentRepository, submissionRepository, attendanceSessionRepository,
+                attendanceRecordRepository, null);
+    }
+
+    @Autowired
+    public ClassService(
+            CourseClassRepository courseClassRepository,
+            ClassMemberRepository classMemberRepository,
+            UserRepository userRepository,
+            MaterialRepository materialRepository,
+            AssignmentRepository assignmentRepository,
+            SubmissionRepository submissionRepository,
+            AttendanceSessionRepository attendanceSessionRepository,
+            AttendanceRecordRepository attendanceRecordRepository,
+            ClassScheduleRepository classScheduleRepository
+    ) {
+        this.courseClassRepository = courseClassRepository;
+        this.classMemberRepository = classMemberRepository;
+        this.userRepository = userRepository;
+        this.materialRepository = materialRepository;
+        this.assignmentRepository = assignmentRepository;
+        this.submissionRepository = submissionRepository;
+        this.attendanceSessionRepository = attendanceSessionRepository;
+        this.attendanceRecordRepository = attendanceRecordRepository;
+        this.classScheduleRepository = classScheduleRepository;
+    }
 
     @Autowired(required = false)
     private FirebaseService firebaseService;
@@ -340,6 +378,29 @@ public class ClassService {
         materialRepository.delete(material);
     }
 
+    @Transactional
+    public void deleteClass(UUID classId, UUID lecturerId) {
+        CourseClass cc = courseClassRepository.findById(classId)
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+
+        if (cc.getLecturer() == null || lecturerId == null || !cc.getLecturer().getId().equals(lecturerId)) {
+            throw new AppException(ErrorCode.ACCESS_DENIED);
+        }
+
+        long memberCount = classMemberRepository.countByCourseClassId(classId);
+        if (memberCount > 0) {
+            throw new AppException(ErrorCode.INVALID_INPUT, "Không thể xóa lớp học đã có sinh viên tham gia. Vui lòng sử dụng tính năng Lưu trữ lớp.");
+        }
+
+        if (classScheduleRepository != null) {
+            classScheduleRepository.deleteAllByCourseClassId(classId);
+        }
+        if (materialRepository != null) {
+            materialRepository.deleteAllByCourseClassId(classId);
+        }
+        courseClassRepository.delete(cc);
+    }
+
     @Transactional(readOnly = true)
     public ClassStatisticsResponse getClassStatistics(UUID classId) {
         CourseClass cc = courseClassRepository.findById(classId)
@@ -582,7 +643,7 @@ public class ClassService {
                     : 0;
         }
 
-        return new ClassDetailResponse(
+        ClassDetailResponse resp = new ClassDetailResponse(
                 cc.getId(),
                 cc.getCode(),
                 cc.getName(),
@@ -600,6 +661,8 @@ public class ClassService {
                 assignments,
                 attendanceRecords
         );
+        resp.setStatus(cc.getStatus() != null ? cc.getStatus().name() : "ACTIVE");
+        return resp;
     }
 
     @Transactional(readOnly = true)

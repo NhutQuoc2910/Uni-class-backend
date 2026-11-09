@@ -79,7 +79,8 @@ class ClassAndDeleteAndQrNotificationTest {
                 assignmentRepository,
                 submissionRepository,
                 attendanceSessionRepository,
-                attendanceRecordRepository
+                attendanceRecordRepository,
+                classScheduleRepository
         );
 
         assignmentService = new AssignmentService(
@@ -450,5 +451,53 @@ class ClassAndDeleteAndQrNotificationTest {
         assertTrue(topNotif.isUnread());
         assertTrue(topNotif.getTitle().contains("Điểm danh đang mở"));
         assertTrue(topNotif.getBody().contains("Tải mã QR"));
+    }
+
+    // ==========================================
+    // 6. DELETE CLASS TESTS (TDD)
+    // ==========================================
+    @Test
+    @DisplayName("deleteClass: Xóa lớp học thành công khi chưa có sinh viên nào tham gia (count = 0)")
+    void deleteClass_withZeroStudents_deletesSuccessfully() {
+        when(courseClassRepository.findById(classId)).thenReturn(Optional.of(courseClass));
+        when(classMemberRepository.countByCourseClassId(classId)).thenReturn(0L);
+
+        classService.deleteClass(classId, lecturerId);
+
+        verify(classScheduleRepository, times(1)).deleteAllByCourseClassId(classId);
+        verify(materialRepository, times(1)).deleteAllByCourseClassId(classId);
+        verify(courseClassRepository, times(1)).delete(courseClass);
+    }
+
+    @Test
+    @DisplayName("deleteClass: Báo lỗi khi lớp đã có sinh viên tham gia (count > 0)")
+    void deleteClass_withEnrolledStudents_throwsBadRequest() {
+        when(courseClassRepository.findById(classId)).thenReturn(Optional.of(courseClass));
+        when(classMemberRepository.countByCourseClassId(classId)).thenReturn(5L);
+
+        AppException ex = assertThrows(AppException.class, () ->
+                classService.deleteClass(classId, lecturerId)
+        );
+
+        assertEquals(ErrorCode.INVALID_INPUT, ex.getErrorCode());
+        assertTrue(ex.getMessage().contains("Không thể xóa lớp học đã có sinh viên tham gia"));
+        verify(courseClassRepository, never()).delete(any());
+        verify(classScheduleRepository, never()).deleteAllByCourseClassId(any());
+        verify(materialRepository, never()).deleteAllByCourseClassId(any());
+    }
+
+    @Test
+    @DisplayName("deleteClass: Bị từ chối khi giảng viên không sở hữu lớp")
+    void deleteClass_withNonOwnerLecturer_throwsForbidden() {
+        when(courseClassRepository.findById(classId)).thenReturn(Optional.of(courseClass));
+
+        AppException ex = assertThrows(AppException.class, () ->
+                classService.deleteClass(classId, otherLecturerId)
+        );
+
+        assertEquals(ErrorCode.ACCESS_DENIED, ex.getErrorCode());
+        verify(courseClassRepository, never()).delete(any());
+        verify(classScheduleRepository, never()).deleteAllByCourseClassId(any());
+        verify(materialRepository, never()).deleteAllByCourseClassId(any());
     }
 }
