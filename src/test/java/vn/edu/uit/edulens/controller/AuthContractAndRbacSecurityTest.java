@@ -403,6 +403,23 @@ public class AuthContractAndRbacSecurityTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true));
         }
+
+        @Test
+        @DisplayName("DELETE /api/v1/classes/{classId} - Student 403 Forbidden, Lecturer 200 OK")
+        void testDeleteClassRbac() throws Exception {
+            // Student -> 403
+            mockMvc.perform(delete("/api/v1/classes/{classId}", classId)
+                            .with(user(studentDetails)))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.code").value(40300));
+
+            // Lecturer -> 200
+            mockMvc.perform(delete("/api/v1/classes/{classId}", classId)
+                            .with(user(lecturerDetails)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.message").value("Đã xóa vĩnh viễn lớp học thành công"));
+        }
     }
 
     @Nested
