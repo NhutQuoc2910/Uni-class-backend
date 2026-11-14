@@ -12,4 +12,12 @@ public class UpdateProfileRequest {
     private String phone;
     private String avatarUrl;
     private String fcmToken;
+    private String studentId;
+    private String lecturerId;
+    private String faculty;
+    private String cohort;
+    private String educationProgram;
+    private String academicDegree;
+    private String academicRank;
+    private String position;
 }

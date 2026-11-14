@@ -46,6 +46,30 @@ public class User {
     @Column(name = "avatar_url")
     private String avatarUrl;
 
+    @Column(name = "student_id", length = 30)
+    private String studentId;
+
+    @Column(name = "lecturer_id", length = 30)
+    private String lecturerId;
+
+    @Column(name = "faculty", length = 100)
+    private String faculty;
+
+    @Column(name = "cohort", length = 50)
+    private String cohort;
+
+    @Column(name = "education_program", length = 100)
+    private String educationProgram;
+
+    @Column(name = "academic_degree", length = 50)
+    private String academicDegree;
+
+    @Column(name = "academic_rank", length = 50)
+    private String academicRank;
+
+    @Column(name = "position", length = 50)
+    private String position;
+
     @Column(name = "fcm_token")
     private String fcmToken;
 

@@ -9,6 +9,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import vn.edu.uit.edulens.dto.request.ChangePasswordRequest;
+import vn.edu.uit.edulens.dto.request.UpdateProfileRequest;
+import vn.edu.uit.edulens.dto.response.UserResponse;
 import vn.edu.uit.edulens.entity.User;
 import vn.edu.uit.edulens.exception.AppException;
 import vn.edu.uit.edulens.exception.ErrorCode;
@@ -109,5 +111,30 @@ class UserServiceTest {
 
         AppException ex = assertThrows(AppException.class, () -> userService.changePassword(userId, request));
         assertEquals(ErrorCode.USER_NOT_FOUND, ex.getErrorCode());
+    }
+
+    @Test
+    @DisplayName("Cập nhật thông tin học vụ và hồ sơ thành công")
+    void updateProfile_WithAcademicDetails_Success() {
+        UpdateProfileRequest req = UpdateProfileRequest.builder()
+                .fullName("Nguyễn Văn A")
+                .phone("0901234567")
+                .studentId("22521190")
+                .faculty("Mạng máy tính và Truyền thông")
+                .cohort("Khóa K22 (2022 - 2026)")
+                .educationProgram("Đại học Chương trình tiên tiến")
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(sampleUser));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UserResponse res = userService.updateProfile(userId, req);
+        assertNotNull(res);
+        assertEquals("Nguyễn Văn A", res.getFullName());
+        assertEquals("0901234567", res.getPhone());
+        assertEquals("22521190", res.getStudentId());
+        assertEquals("Mạng máy tính và Truyền thông", res.getFaculty());
+        assertEquals("Khóa K22 (2022 - 2026)", res.getCohort());
+        assertEquals("Đại học Chương trình tiên tiến", res.getEducationProgram());
     }
 }

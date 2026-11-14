@@ -55,6 +55,38 @@ public class UserService {
             user.setFcmToken(request.getFcmToken());
         }
 
+        if (request.getStudentId() != null) {
+            user.setStudentId(request.getStudentId().trim());
+        }
+
+        if (request.getLecturerId() != null) {
+            user.setLecturerId(request.getLecturerId().trim());
+        }
+
+        if (request.getFaculty() != null) {
+            user.setFaculty(request.getFaculty().trim());
+        }
+
+        if (request.getCohort() != null) {
+            user.setCohort(request.getCohort().trim());
+        }
+
+        if (request.getEducationProgram() != null) {
+            user.setEducationProgram(request.getEducationProgram().trim());
+        }
+
+        if (request.getAcademicDegree() != null) {
+            user.setAcademicDegree(request.getAcademicDegree().trim());
+        }
+
+        if (request.getAcademicRank() != null) {
+            user.setAcademicRank(request.getAcademicRank().trim());
+        }
+
+        if (request.getPosition() != null) {
+            user.setPosition(request.getPosition().trim());
+        }
+
         User savedUser = userRepository.save(user);
         log.info("Profile updated for user: {}", savedUser.getEmail());
         return UserResponse.fromUser(savedUser);
