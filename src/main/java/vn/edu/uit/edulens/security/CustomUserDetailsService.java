@@ -20,7 +20,8 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
-        User user = userRepository.findByEmailOrPhone(identifier, identifier)
+        String clean = identifier != null ? identifier.trim() : "";
+        User user = userRepository.findByEmailOrPhone(clean.toLowerCase(), clean)
                 .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng với: " + identifier));
         return new CustomUserDetails(user);
     }

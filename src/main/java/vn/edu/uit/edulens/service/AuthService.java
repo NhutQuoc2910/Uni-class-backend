@@ -53,7 +53,7 @@ public class AuthService {
             throw new AppException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        if (user.getStatus() == UserStatus.LOCKED) {
+        if (user.getStatus() != UserStatus.ACTIVE) {
             throw new AppException(ErrorCode.ACCOUNT_LOCKED);
         }
 
@@ -242,6 +242,10 @@ public class AuthService {
                 OtpPurpose.FORGOT_PASSWORD
         );
 
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPasswordHash())) {
+            throw new AppException(ErrorCode.SAME_AS_OLD_PASSWORD);
+        }
+
         // Cập nhật mật khẩu mới bằng BCrypt
         user.setPasswordHash(
                 passwordEncoder.encode(request.getNewPassword())
@@ -413,7 +417,7 @@ public class AuthService {
                 || request.getPassword() == null || request.getPassword().isBlank()
                 || request.getPassword().length() < 6
                 || request.getRole() == null) {
-            throw new IllegalArgumentException("Thông tin đăng ký không hợp lệ");
+            throw new AppException(ErrorCode.INVALID_INPUT);
         }
 
         // Không cho phép tự đăng ký ADMIN

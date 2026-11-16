@@ -28,7 +28,7 @@ public class SendOtpRequest {
     private String fullName;
 
     @Pattern(
-        regexp = "^$|^[0-9+]{8,15}$",
+        regexp = "^$|^\\+?[0-9]{9,15}$",
         message = "Số điện thoại không hợp lệ"
     )
     private String phone;
