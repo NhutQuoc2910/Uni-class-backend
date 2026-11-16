@@ -1,0 +1,76 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: backend-cicd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Run Maven Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Make mvnw executable and run tests
+        run: |
+          chmod +x ./mvnw
+          ./mvnw test -B
+
+  deploy:
+    name: Deploy to Azure VPS
+    needs: test
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH and run Docker Compose
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          command_timeout: 15m
+          script: |
+            set -e
+            cd ~/Uni-class-backend
+            echo "==> Pulling latest code from origin/main..."
+            git fetch origin main
+            git pull --ff-only origin main
+
+            echo "==> Building and starting Docker containers..."
+            docker compose up -d --build
+
+            echo "==> Cleaning up dangling Docker images..."
+            docker image prune -f
+
+            echo "==> Waiting for edulens-backend healthcheck on port 8080..."
+            for i in $(seq 1 20); do
+              if curl -fsS http://localhost:8080/v3/api-docs >/dev/null 2>&1; then
+                echo "==> edulens-backend is UP and healthy!"
+                exit 0
+              fi
+              sleep 3
+            done
+
+            echo "==> ERROR: edulens-backend did not become healthy in time. Container logs:"
+            docker compose logs --tail=50 edulens-backend
+            exit 1
